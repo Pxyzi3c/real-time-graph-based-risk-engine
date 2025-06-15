@@ -29,10 +29,34 @@ pip install --upgrade pip
     ```bash
     pip freeze > requirements.txt
     ```
-3. Commit Dependencies:
-    * Commit the changes:
+
+## Set Up Project Structure
+
+1. Directory Structure:
+    * Create the following directories to organize the project:
     ```bash
-    git add .
-    git commit -m "Set up initial project structure and installed dependencies"
-    git push origin main
+    mkdir src data logs
+    mkdir src/ingestion src/streaming src/storage src/orchestration src/transformation src/serving src/visualization
     ```
+2. Ensure Organized Folder Layout:
+    * Your project should now look like this:
+    ```bash
+    real-time-aml-risk-engine/
+    ├── data/                # Folder to store data files
+    │   ├── raw/             # Raw data (e.g., Credit Card Fraud Dataset)
+    │   └── processed/       # Processed data (e.g., enriched transaction data)
+    ├── logs/                # Folder for logs (e.g., Airflow logs)
+    ├── src/                 # All source code for the project
+    │   ├── ingestion/       # Scripts for ingesting data into Kafka
+    │   ├── streaming/       # Kafka consumer and streaming logic
+    │   ├── storage/         # PostgreSQL and Neo4j storage logic
+    │   ├── orchestration/   # Airflow DAGs and scheduling
+    │   ├── transformation/  # dbt transformation logic
+    │   ├── serving/         # FastAPI for exposing endpoints
+    │   └── visualization/   # Superset configurations and dashboard logic
+    ├── requirements.txt     # List of project dependencies
+    ├── README.md            # Project description and setup instructions
+    └── .gitignore           # To ignore unnecessary files in Git
+    ```
+3. Create the ```README.md``` file:
+    * Add a brief description of the project and a placeholder for detailed setup instructions later.
