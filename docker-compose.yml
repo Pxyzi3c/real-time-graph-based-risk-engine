@@ -1,10 +1,51 @@
+# services:
+#     db:
+#         image: postgres:13
+#         container_name: postgres_db
+#         environment:
+#             POSTGRES_USER: postgres_container_user
+#             POSTGRES_PASSWORD: postgres_container_pass
+#             POSTGRES_DB: development
+#         ports:
+#             - "5432:5432"
+#         volumes:
+#             - aml_postgres_data:/var/lib/postgresql/data
+#         networks:
+#             - aml_network
+
+#     dbt:
+#         image: dbt-labs/dbt:1.9.8
+#         container_name: dbt_container
+#         environment:
+#             DBT_PROFILE: aml_profile
+#             DBT_HOST: postgres_db
+#             DBT_USER: postgres_container_user
+#             DBT_PASSWORD: postgres_container_pass
+#             DBT_DBNAME: development
+#             DBT_SCHEMA: public
+#         volumes:
+#             - ./risk_engine_dbt:/usr/app
+#             - ~/.dbt:/root/.dbt
+#         networks:
+#             - aml_network
+#         depends_on:
+#             - db
+
+# networks:
+#     aml_network:
+#         driver: bridge
+
+# volumes:
+#     aml_postgres_data:
+# Recommended location: real-time-aml-risk-engine/docker-compose.yml
+
 services:
     db:
         image: postgres:13
         container_name: postgres_db
         environment:
             POSTGRES_USER: ${DC_POSTGRES_USER}
-            POSTGRES_PASSWORD: ${DC_POSTGRES_PASS} # Change this password for security
+            POSTGRES_PASSWORD: ${DC_POSTGRES_PASS}
             POSTGRES_DB: ${DC_POSTGRES_DB}
         ports:
             - "5432:5432"
@@ -13,9 +54,31 @@ services:
         networks:
             - aml_network
 
-volumes:
-    aml_postgres_data:
+    dbt:
+        image: ghcr.io/dbt-labs/dbt-postgres:1.9.1
+        container_name: dbt_runner_container
+        environment:
+            DBT_PG_HOST: db
+            DBT_PG_PORT: 5432
+            DBT_PG_USER: ${DBT_USER}
+            DBT_PG_PASS: ${DBT_PASSWORD}
+            DBT_PG_DBNAME: ${DBT_DBNAME}
+            DBT_PG_SCHEMA: ${DBT_SCHEMA}
+            DBT_PROFILES_DIR: /root/.dbt
+        volumes:
+            # If this docker-compose.yml is in 'real-time-aml-risk-engine/',
+            # then './real-time-aml-risk-engine-dbt/risk_engine_dbt' is the correct path to your dbt project.
+            - ./real-time-aml-risk-engine-dbt/risk_engine_dbt:/usr/app/dbt_project
+            - ~/.dbt:/root/.dbt
+        working_dir: /usr/app/dbt_project
+        networks:
+            - aml_network
+        depends_on:
+            - db
 
 networks:
     aml_network:
         driver: bridge
+
+volumes:
+    aml_postgres_data:
