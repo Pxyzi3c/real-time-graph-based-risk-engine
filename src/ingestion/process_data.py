@@ -15,4 +15,7 @@ def main():
     df['Amount'] = scaler.fit_transform(df[['Amount']])
     df['Class'] = df['Class'].astype('int')
 
+    # Save Data
+    df.to_csv('data/processed/creditcard.csv', index=False)
+
 main()
