@@ -12,8 +12,8 @@ class DataCleaner(BaseTransformer):
         logger.info("Starting data cleaning...")
         # Example cleaning steps
         original_rows = len(df)
-        df.dropna(inplace=True)
+        df.dropna()
         logger.info(f"Dropped {original_rows - len(df)} rows with missing values.")
-        df.drop_duplicates(inplace=True)
+        df.drop_duplicates()
         logger.info(f"Dropped {original_rows - len(df)} duplicates rows.")
         return df
