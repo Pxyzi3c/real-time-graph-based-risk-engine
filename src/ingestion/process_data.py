@@ -1,9 +1,7 @@
-"""
-This script loads credit card transaction data,
-performs basic data cleaning (checking for nulls and dropping rows with missing values)
-"""
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
+
+def read_data():
 
 def main():
     df = pd.read_csv('data/raw/creditcard.csv')
