@@ -2,6 +2,9 @@ from src.transformation.base_transformer import BaseTransformer
 import pandas as pd
 import logging
 
+from config.logging_config import setup_logging
+setup_logging()
+
 logger = logging.getLogger(__name__)
 
 class DataCleaner(BaseTransformer):
@@ -13,5 +16,4 @@ class DataCleaner(BaseTransformer):
         logger.info(f"Dropped {original_rows - len(df)} rows with missing values.")
         df.drop_duplicates(inplace=True)
         logger.info(f"Dropped {original_rows - len(df)} duplicates rows.")
-        # ... more cleaning logic
         return df
