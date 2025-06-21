@@ -1,3 +1,9 @@
+"""
+Call this at the start of your application
+from config.logging_config import setup_logging
+setup_logging()
+"""
+
 import logging
 import os
 
@@ -13,7 +19,3 @@ def setup_logging():
     )
     # Suppress chatty loggers (e.g., SQLAlchemy)
     logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
-
-# Call this at the start of your application
-# from config.logging_config import setup_logging
-# setup_logging()
