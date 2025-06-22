@@ -1,9 +1,12 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    DATABASE_URL: str
-    API_KEY: str = "default_key" # Can have defaults
+    DATABASE_URL: str = "postgresql://{POSTGRES_USER}:{POSTGRES_PASS}@localhost:5432/{POSTGRES_DB}"
+    API_KEY: str = "default_key"
 
-    model_config = SettingsConfigDict(env_file='.env', extra='ignore')
+    class Config:
+        env_file = ".env"
+        env_file_encoding = 'utf-8'
+        extra = 'ignore'
 
 settings = Settings()
