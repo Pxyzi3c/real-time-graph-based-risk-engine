@@ -1,4 +1,10 @@
+import sys
 import os
+
+script_dir = os.path.dirname(__file__)
+project_root = os.path.abspath(os.path.join(script_dir, '..', '..'))
+sys.path.append(project_root)
+
 import logging
 import pandas as pd
 from dotenv import load_dotenv
@@ -60,6 +66,9 @@ class KaggleDataIngestion:
             # Step 3: Feature engineering
             feature_processor = CreditCardFeatureProcessor()
             df = feature_processor.transform(df)
+
+            # Step 4: Save to PostgreSQL
+            self.save_to_postgres(df)
 
             # Step 4: Save the processed data
             df.reset_index(drop=True, inplace=True)

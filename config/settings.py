@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    DATABASE_URL: str = "postgresql://{POSTGRES_USER}:{POSTGRES_PASS}@localhost:5432/{POSTGRES_DB}"
+    DATABASE_URL: str = "postgresql://{POSTGRES_USER}:{POSTGRES_PASS}@postgres_db:5432/{POSTGRES_DB}"
     API_KEY: str = "default_key"
 
     class Config:
