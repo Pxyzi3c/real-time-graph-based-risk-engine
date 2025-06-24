@@ -47,8 +47,9 @@ class KaggleDataIngestion:
     def save_to_postgres(self, df: pd.DataFrame):
         try:
             engine = create_engine(os.getenv("DATABASE_URL"))
+            print(f"ENGINE RESULT:\n{engine}")
 
-            df.to_sql('credit_card_fraud', engine, index=False, if_exists='replace', method='multi')
+            df.to_sql('development', engine, index=False, if_exists='replace', method='multi')
             logger.info("Data saved to PostgreSQL successfully.")
         except Exception as e:
             logger.error(f"Error while saving data to PostgreSQL: {e}")
