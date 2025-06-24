@@ -8,9 +8,9 @@ services:
             POSTGRES_USER: postgres_container_user
             POSTGRES_PASSWORD: postgres_container_pass
             POSTGRES_DB: development
-            # POSTGRES_HOST_AUTH_METHOD: trust 
+            # POSTGRES_HOST_AUTH_METHOD: trust
         volumes:
-            # - ./postgres-config/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf
+            - ./postgres-config/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf
             - aml_postgres_data:/var/lib/postgresql/data
         networks:
             - aml_network # This network needs to be created by this compose file
