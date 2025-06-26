@@ -7,7 +7,7 @@ script_dir = os.path.dirname(__file__)
 project_root = os.path.abspath(os.path.join(script_dir, '..', '..'))
 sys.path.append(project_root)
 
-from src.common.db import save_dataframe_to_db, get_engine
+from src.common.db import save_dataframe_to_db
 from src.ingestion.base_extractor import BaseExtractor
 from src.transformation.data_cleaning import DataCleaner
 from src.transformation.feature_engineering import CreditCardFeatureProcessor
@@ -15,10 +15,7 @@ from src.transformation.feature_engineering import CreditCardFeatureProcessor
 from config.logging_config import setup_logging
 from config.settings import settings
 
-
-from config.logging_config import setup_logging
 setup_logging()
-
 logger = logging.getLogger(__name__)
 
 class KaggleDataExtractor(BaseExtractor):
@@ -27,13 +24,20 @@ class KaggleDataExtractor(BaseExtractor):
         self.output_path = output_path
 
     def validate_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        expected_cols = {'Timme', 'Amount', 'Class', *[f'V{i}' for i in range(1, 28)]}
-        if not expected_cols.issbutset(set(df.columns)):
+        expected_cols = {'Time', 'Amount', 'Class', *[f'V{i}' for i in range(1, 28)]}
+        if not expected_cols.issubset(set(df.columns)):
             logger.error(f"Missing expected columns: {expected_cols - set(df.columns)}")
             raise ValueError("Data schema does not match expected Kaggle structure.")
         return df
 
     def extract(self) -> pd.DataFrame:
+        if not os.path.exists(self.input_path):
+            logger.critical(f"Data file not found at {self.input_path}")
+            raise FileNotFoundError(f"Data file not found at: {self.input_path}")
+
+        file_size_bytes = os.path.getsize(self.input_path)
+        logger.info(f"Input file '{self.input_path}' size: {file_size_bytes / (1024 * 1024):.2f} MB")
+        
         try:
             df = pd.read_csv(self.input_path)
             logger.info(f"Data extracted successfully from {self.input_path}")
