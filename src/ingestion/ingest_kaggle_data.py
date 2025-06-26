@@ -2,12 +2,10 @@ import os
 import pandas as pd
 import logging
 import sys
-from dotenv import load_dotenv
 
 script_dir = os.path.dirname(__file__)
 project_root = os.path.abspath(os.path.join(script_dir, '..', '..'))
 sys.path.append(project_root)
-
 
 from src.common.db import save_dataframe_to_db, get_engine
 from src.ingestion.base_extractor import BaseExtractor
@@ -17,7 +15,6 @@ from src.transformation.feature_engineering import CreditCardFeatureProcessor
 from config.logging_config import setup_logging
 from config.settings import settings
 
-load_dotenv()
 
 from config.logging_config import setup_logging
 setup_logging()
@@ -29,10 +26,18 @@ class KaggleDataExtractor(BaseExtractor):
         self.input_path = input_path
         self.output_path = output_path
 
+    def validate_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        expected_cols = {'Timme', 'Amount', 'Class', *[f'V{i}' for i in range(1, 28)]}
+        if not expected_cols.issbutset(set(df.columns)):
+            logger.error(f"Missing expected columns: {expected_cols - set(df.columns)}")
+            raise ValueError("Data schema does not match expected Kaggle structure.")
+        return df
+
     def extract(self) -> pd.DataFrame:
         try:
             df = pd.read_csv(self.input_path)
             logger.info(f"Data extracted successfully from {self.input_path}")
+            df = self.validate_data(df)
             return df
         except FileNotFoundError as e:
             logger.error(f"File not found: {self.input_path}")
@@ -74,8 +79,8 @@ class KaggleDataIngestion:
 
 if __name__ == "__main__":
     # Fetch paths from environment variables (for flexibility)
-    input_path = os.getenv("KAGGLE_INPUT_PATH", "data/raw/creditcard.csv")
-    output_path = os.getenv("KAGGLE_OUTPUT_PATH", "data/processed/creditcard_processed.csv")
+    input_path = settings.KAGGLE_INPUT_PATH
+    output_path = settings.KAGGLE_OUTPUT_PATH
 
     # Run the ingestion pipeline
     ingestion = KaggleDataIngestion(input_path, output_path)

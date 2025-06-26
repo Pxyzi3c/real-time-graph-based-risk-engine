@@ -1,7 +1,5 @@
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
-from sqlalchemy.engine import URL
 import pandas as pd
 import logging 
 
@@ -37,12 +35,11 @@ def get_engine():
             raise
     return _engine
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
-
 def save_dataframe_to_db(df: pd.DataFrame, table_name: str, if_exists: str = 'replace', chunksize: int = 10000):
-    engine = get_engine()
-    logger.info(f"Attempting to save DataFrame to table '{table_name}' with if_exists='{if_exists}' and chunksize={chunksize}...")
     try:
+        engine = get_engine()
+        logger.info(f"Attempting to save DataFrame to table '{table_name}' with if_exists='{if_exists}' and chunksize={chunksize}...")
+        
         df.to_sql(table_name, engine, index=False, if_exists=if_exists, method='multi', chunksize=chunksize)
         logger.info("Data saved to PostgreSQL successfully.")
     except Exception as e:
