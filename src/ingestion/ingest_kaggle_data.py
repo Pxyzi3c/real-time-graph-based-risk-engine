@@ -5,10 +5,14 @@ script_dir = os.path.dirname(__file__)
 project_root = os.path.abspath(os.path.join(script_dir, '..', '..'))
 sys.path.append(project_root)
 
+import psycopg2
 import logging
 import pandas as pd
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
+from urllib.parse import urlparse
+from sqlalchemy.pool import QueuePool
 from src.ingestion.base_extractor import BaseExtractor
 from src.transformation.data_cleaning import DataCleaner
 from src.transformation.feature_engineering import CreditCardFeatureProcessor
@@ -45,11 +49,17 @@ class KaggleDataIngestion:
         self.extractor = KaggleDataExtractor(self.input_path, self.output_path)
 
     def save_to_postgres(self, df: pd.DataFrame):
+        db_url_str = os.getenv("DATABASE_URL")
+        if not db_url_str:
+            print("Error: DATABASE_URL environment variable not found.")
+            exit(1)
         try:
-            engine = create_engine(os.getenv("DATABASE_URL"))
-            print(f"ENGINE RESULT:\n{engine}")
+            _engine = create_engine(db_url_str)
 
-            df.to_sql('development', engine, index=False, if_exists='replace', method='multi')
+            # ============== DEBUGGING AREA ============== #
+            # ============== DEBUGGING AREA ============== #
+
+            df.to_sql('credit_card_fraud', _engine, index=False, if_exists='replace', method='multi')
             logger.info("Data saved to PostgreSQL successfully.")
         except Exception as e:
             logger.error(f"Error while saving data to PostgreSQL: {e}")
