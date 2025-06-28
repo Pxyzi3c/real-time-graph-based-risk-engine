@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 from sqlalchemy.engine import URL
@@ -30,8 +30,8 @@ def get_engine():
             )
 
             with _engine.connect() as connection:
-                connection.execute(URL("SELECT 1"))
-            logger.info("Database connection test successful.")
+                connection.execute(text("SELECT 1"))
+                logger.info("Database connection test successful.")
         except Exception as e:
             logger.critical(f"Failed to create or connect to database engine: {e}", exc_info=True)
             raise
@@ -44,6 +44,7 @@ def save_dataframe_to_db(df: pd.DataFrame, table_name: str, if_exists: str = 're
     logger.info(f"Attempting to save DataFrame to table '{table_name}' with if_exists='{if_exists}' and chunksize={chunksize}...")
     try:
         df.to_sql(table_name, engine, index=False, if_exists=if_exists, method='multi', chunksize=chunksize)
+        logger.info("Data saved to PostgreSQL successfully.")
     except Exception as e:
         logger.error(f"Error while saving data to table '{table_name}': {e}", exc_info=True)
         raise

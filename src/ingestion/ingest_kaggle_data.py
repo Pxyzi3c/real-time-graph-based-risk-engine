@@ -1,22 +1,21 @@
-import sys
 import os
+import pandas as pd
+import logging
+import sys
+from dotenv import load_dotenv
 
 script_dir = os.path.dirname(__file__)
 project_root = os.path.abspath(os.path.join(script_dir, '..', '..'))
 sys.path.append(project_root)
 
-import psycopg2
-import logging
-import pandas as pd
-from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy.engine import URL
-from urllib.parse import urlparse
-from sqlalchemy.pool import QueuePool
+
+from src.common.db import save_dataframe_to_db, get_engine
 from src.ingestion.base_extractor import BaseExtractor
 from src.transformation.data_cleaning import DataCleaner
 from src.transformation.feature_engineering import CreditCardFeatureProcessor
+
 from config.logging_config import setup_logging
+from config.settings import settings
 
 load_dotenv()
 
@@ -47,28 +46,7 @@ class KaggleDataIngestion:
         self.input_path = input_path
         self.output_path = output_path
         self.extractor = KaggleDataExtractor(self.input_path, self.output_path)
-
-    def save_to_postgres(self, df: pd.DataFrame):
-        db_url_str = os.getenv("DATABASE_URL")
-        engine = create_engine(
-            os.getenv("DATABASE_URL"),
-            poolclass=QueuePool,
-            pool_size=10,
-            max_overflow=20,
-            pool_timeout=30,
-            pool_recycle=3600
-        )
-
-        print(f"ENGINE: {engine}")
-        if not db_url_str:
-            print("Error: DATABASE_URL environment variable not found.")
-            exit(1)
-        try:
-            df.to_sql('credit_card_fraud', engine, index=False, if_exists='replace', method='multi', chunksize=10000)
-            logger.info("Data saved to PostgreSQL successfully.")
-        except Exception as e:
-            logger.error(f"Error while saving data to PostgreSQL: {e}")
-            raise e
+        self.logger = logger
 
     def run(self):
         try:
@@ -84,7 +62,7 @@ class KaggleDataIngestion:
             df = feature_processor.transform(df)
 
             # Step 4: Save to PostgreSQL
-            self.save_to_postgres(df)
+            save_dataframe_to_db(df, 'credit_card_fraud', if_exists='replace', chunksize=settings.DB_SAVE_CHUNKSIZE if hasattr(settings, 'DB_SAVE_CHUNKSIZE') else 10000)
 
             # Step 4: Save the processed data
             df.reset_index(drop=True, inplace=True)
