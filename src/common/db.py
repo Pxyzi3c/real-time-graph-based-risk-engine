@@ -1,36 +1,49 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
-from config.settings import settings
 from sqlalchemy.engine import URL
+import pandas as pd
+import logging 
+
+from config.settings import settings
+
+from config.logging_config import setup_logging
+setup_logging()
+logger = logging.getLogger(__name__)
 
 _engine = None
 
 def get_engine():
     global _engine
     if _engine is None:
-        database_url = settings.DATABASE_URL
+        try:
+            database_url = settings.DATABASE_URL
+            logger.info(f"Creating SQLAlchemy Engine for URL: {database_url.split('@')[-1]}")
 
-        _engine = create_engine(
-            database_url,
-            poolclass=QueuePool,
-            pool_size=10,
-            max_overflow=20,
-            pool_timeout=30,
-            pool_recycle=3600,
-        )
+            _engine = create_engine(
+                database_url,
+                poolclass=QueuePool,
+                pool_size=settings.DB_POOL_SIZE,
+                max_overflow=settings.DB_MAX_OVERFLOW,
+                pool_timeout=settings.DB_POOL_TIMEOUT,
+                pool_recycle=settings.DB_POOL_RECYCLE,
+            )
 
-        # _engine2 = create_engine(URL.create(
-        #     drivername='postgresql+psycopg2',
-        #     username=settings.POSTGRES_USER,
-        #     password=settings.POSTGRES_PASS,
-        #     host='postgres_db',
-        #     port=5432,
-        #     database=settings.POSTGRES_DB
-        # ), poolclass=QueuePool, pool_size=10, max_overflow=20, pool_timeout=30, pool_recycle=3600)
-        
-        # print(f"Engine: {_engine}\nEngine2: {_engine2}")
+            with _engine.connect() as connection:
+                connection.execute(URL("SELECT 1"))
+            logger.info("Database connection test successful.")
+        except Exception as e:
+            logger.critical(f"Failed to create or connect to database engine: {e}", exc_info=True)
+            raise
     return _engine
 
-# get_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
+
+def save_dataframe_to_db(df: pd.DataFrame, table_name: str, if_exists: str = 'replace', chunksize: int = 10000):
+    engine = get_engine()
+    logger.info(f"Attempting to save DataFrame to table '{table_name}' with if_exists='{if_exists}' and chunksize={chunksize}...")
+    try:
+        df.to_sql(table_name, engine, index=False, if_exists=if_exists, method='multi', chunksize=chunksize)
+    except Exception as e:
+        logger.error(f"Error while saving data to table '{table_name}': {e}", exc_info=True)
+        raise
