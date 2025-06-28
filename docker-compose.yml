@@ -3,11 +3,11 @@ services:
         image: postgres:13
         container_name: postgres_db
         ports:
-            - "5431:5432"
+            - "6543:5432"
         environment:
-            POSTGRES_DB: development
-            POSTGRES_USER: postgres_container_user
-            POSTGRES_PASSWORD: pgdockerpass
+            POSTGRES_DB: ${POSTGRES_DB}
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASS}
             # POSTGRES_HOST_AUTH_METHOD: trust
         volumes:
             # - ./postgres-config/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf
