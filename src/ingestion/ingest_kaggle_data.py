@@ -50,8 +50,8 @@ class KaggleDataIngestion:
 
     def save_to_postgres(self, df: pd.DataFrame):
         db_url_str = os.getenv("DATABASE_URL")
-        _engine = create_engine(
-            db_url_str,
+        engine = create_engine(
+            os.getenv("DATABASE_URL"),
             poolclass=QueuePool,
             pool_size=10,
             max_overflow=20,
@@ -59,11 +59,12 @@ class KaggleDataIngestion:
             pool_recycle=3600
         )
 
+        print(f"ENGINE: {engine}")
         if not db_url_str:
             print("Error: DATABASE_URL environment variable not found.")
             exit(1)
         try:
-            df.to_sql('credit_card_fraud', _engine, index=False, if_exists='replace', method='multi')
+            df.to_sql('credit_card_fraud', engine, index=False, if_exists='replace', method='multi', chunksize=10000)
             logger.info("Data saved to PostgreSQL successfully.")
         except Exception as e:
             logger.error(f"Error while saving data to PostgreSQL: {e}")
