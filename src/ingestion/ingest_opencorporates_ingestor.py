@@ -16,9 +16,9 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 class OpenCorporatesIngestor(BaseExtractor):
-    def __init__(self):
-        self.api_key = settings.OPENCORPORATES_API_KEY
-        self.base_url = settings.OPENCORPORATES_BASE_URL
+    def __init__(self, api_key: str, base_url: str):
+        self.api_key = api_key
+        self.base_url = base_url
         self.engine = get_engine()
 
     def get_company_links(self, jurisdiction: str, company_number: str) -> list[dict]:
@@ -57,3 +57,24 @@ class OpenCorporatesIngestor(BaseExtractor):
         except Exception as e:
             logger.error(f"Failed to save ownership records to DB: {e}")
             raise
+
+if __name__ == "__main__":
+    api_key = settings.OPENCORPORATES_API_KEY
+    base_url = settings.OPENCORPORATES_BASE_URL
+
+    ingestor = OpenCorporatesIngestor(api_key, base_url)
+
+    test_companies = [
+        {
+            "jurisdiction": "gb",
+            "company_number": "07495895"
+        },
+        {
+            "jurisdiction": "us_ca",
+            "company_number":  "C4305344"
+        }
+    ]
+
+    for company in test_companies:
+        ingestor.extract_and_store(company["jurisdiction"], company["company_number"])
+        sleep(1)
