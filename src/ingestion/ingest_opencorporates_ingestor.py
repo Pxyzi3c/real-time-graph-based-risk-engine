@@ -21,4 +21,24 @@ class OpenCorporatesIngestor(BaseExtractor):
         self.base_url = settings.OPENCORPORATES_BASE_URL
         self.engine = get_engine()
 
-    def get_company_data(self, jurisdiction: str, co)
+    def get_company_data(self, jurisdiction: str, company_number: str) -> list[dict]:
+        url = f"{self.base_url}/companies/{jurisdiction}/{company_number}/relationships?api_token={self.api_key}"
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("results", {}).get("relationships", [])
+        except requests.RequestException as e:
+            logger.error(f"Request failed: {e}")
+            return []
+        
+    def extract_and_store(self, jurisdiction: str, company_number: str):
+        records = self.get_company_links(jurisdiction, company_number)
+
+        if not records:
+            logger.warning(f"No ownership records for {jurisdiction}/{company_number}")
+            return
+        
+        df = pd.DataFrame([{
+            "company"
+        }])
