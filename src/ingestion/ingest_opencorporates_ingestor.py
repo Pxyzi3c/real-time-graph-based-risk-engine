@@ -21,7 +21,7 @@ class OpenCorporatesIngestor(BaseExtractor):
         self.base_url = settings.OPENCORPORATES_BASE_URL
         self.engine = get_engine()
 
-    def get_company_data(self, jurisdiction: str, company_number: str) -> list[dict]:
+    def get_company_links(self, jurisdiction: str, company_number: str) -> list[dict]:
         url = f"{self.base_url}/companies/{jurisdiction}/{company_number}/relationships?api_token={self.api_key}"
         try:
             response = requests.get(url)
@@ -40,5 +40,20 @@ class OpenCorporatesIngestor(BaseExtractor):
             return
         
         df = pd.DataFrame([{
-            "company"
-        }])
+            "company_number": company_number,
+            "jurisdiction_code": jurisdiction,
+            "company_name": rel.get("company", {}).get("name"),
+            "source_url": rel.get("source", {}).get("url"),
+            "source_description": rel.get("source", {}).get("description"),
+            "relationship_type": rel.get("relationship", {}).get("type"),
+            "related_entity_name": rel.get("related_entity", {}).get("name"),
+            "related_entity_type": rel.get("related_entity", {}).get("type"),
+            "related_entity_role": rel.get("relationship", {}).get("role"),
+        } for rel in records])
+
+        try:
+            df.to_sql("company_ownership_links", self.engine, index=False, if_exists="append", method="multi", chunksize=settings.DB_SAVE_CHUNKSIZE if hasattr(settings, 'DB_SAVE_CHUNKSIZE') else 10000)
+            logger.info(f"{len(df)} ownership records saved for {jurisdiction}/{company_number}")
+        except Exception as e:
+            logger.error(f"Failed to save ownership records to DB: {e}")
+            raise
