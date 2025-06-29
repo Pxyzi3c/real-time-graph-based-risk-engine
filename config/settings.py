@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     KAGGLE_INPUT_PATH: str = os.getenv("KAGGLE_INPUT_PATH", "data/raw/creditcard.csv")
     KAGGLE_OUTPUT_PATH: str = os.getenv("KAGGLE_OUTPU_PATH", "data/processed/creditcard_processed.csv")
 
+    OPENCORPORATES_API_KEY: str = os.getenv("OPENCORPORATES_API_KEY")
+    OPENCORPORATES_BASE_URL: str = os.getenv("OPENCORPORATES_BASE_URL", "https://api.opencorporates.com/v0.4")
+    
     class Config:
         env_file = ".env"
         env_file_encoding = 'utf-8'

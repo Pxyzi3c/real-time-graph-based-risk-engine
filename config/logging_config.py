@@ -17,5 +17,6 @@ def setup_logging():
             # logging.FileHandler("app.log") # Uncomment for file logging
         ]
     )
-    # Suppress chatty loggers (e.g., SQLAlchemy)
+
+    # Suppress chatty loggers
     logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
