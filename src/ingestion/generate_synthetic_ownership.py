@@ -10,9 +10,12 @@ sys.path.append(project_root)
 
 from faker import Faker
 from datetime import datetime
-from sqlalchemy.exc import SQLAlchemyError
+
 from src.common.db import get_engine
+from src.common.db import save_dataframe_to_db
+
 from config.logging_config import setup_logging
+from config.settings import settings
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -46,19 +49,30 @@ class SyntheticOwnershipGenerator:
                 "related_entity_role": random.choice(roles),
                 "retrieved_at": datetime.now()
             })
+
+        logger.info(f"Generated {self.num_records} synthetic ownership links:\n {data}")
         
         df = pd.DataFrame(data)
         return df
     
-    def store(self, df: pd.DataFrame):
+    def run(self):
         try:
-            df.to_sql("company_ownership_links", self.engine, index=False, if_exists="append", method="multi")
-            logger.info(f"{len(df)} synthetic ownership records successfully written to PostgreSQL.")
-        except SQLAlchemyError as e:
-            logger.error(f"Failed to write synthetic records: {e}")
+            df = self.generate()
+
+            save_dataframe_to_db(df, "company_ownership_links", if_exists="append", chunksize=settings.DB_SAVE_CHUNKSIZE if hasattr(settings, 'DB_SAVE_CHUNKSIZE') else 10000)
+            logger.info("Synthetic ownership records successfully written to PostgreSQL.")
+        except Exception as e:
+            logger.error(f"Data ingestion failed: {e}")
             raise e
+    
+    # def store(self, df: pd.DataFrame):
+    #     try:
+    #         df.to_sql("company_ownership_links", self.engine, index=False, if_exists="append", method="multi")
+    #         logger.info(f"{len(df)} synthetic ownership records successfully written to PostgreSQL.")
+    #     except SQLAlchemyError as e:
+    #         logger.error(f"Failed to write synthetic records: {e}")
+    #         raise e
         
 if __name__ == "__main__":
     generator = SyntheticOwnershipGenerator(num_records=200)
-    df = generator.generate()
-    generator.store(df)
+    generator.run()

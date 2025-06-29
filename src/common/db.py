@@ -40,7 +40,15 @@ def save_dataframe_to_db(df: pd.DataFrame, table_name: str, if_exists: str = 're
         engine = get_engine()
         logger.info(f"Attempting to save DataFrame to table '{table_name}' with if_exists='{if_exists}' and chunksize={chunksize}...")
         
-        df.to_sql(table_name, engine, index=False, if_exists=if_exists, method='multi', chunksize=chunksize)
+        df.to_sql(
+            table_name, 
+            engine, 
+            index=False, 
+            if_exists=if_exists, 
+            method='multi', 
+            chunksize=chunksize
+        )
+        
         logger.info("Data saved to PostgreSQL successfully.")
     except Exception as e:
         logger.error(f"Error while saving data to table '{table_name}': {e}", exc_info=True)
