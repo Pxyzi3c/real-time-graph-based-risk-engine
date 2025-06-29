@@ -32,7 +32,7 @@ class OpenCorporatesIngestor(BaseExtractor):
             logger.error(f"Request failed: {e}")
             return []
         
-    def extract_and_store(self, jurisdiction: str, company_number: str):
+    def extract(self, jurisdiction: str, company_number: str) -> pd.DataFrame:
         records = self.get_company_links(jurisdiction, company_number)
 
         if not records:
@@ -54,6 +54,7 @@ class OpenCorporatesIngestor(BaseExtractor):
         try:
             df.to_sql("company_ownership_links", self.engine, index=False, if_exists="append", method="multi", chunksize=settings.DB_SAVE_CHUNKSIZE if hasattr(settings, 'DB_SAVE_CHUNKSIZE') else 10000)
             logger.info(f"{len(df)} ownership records saved for {jurisdiction}/{company_number}")
+            return df
         except Exception as e:
             logger.error(f"Failed to save ownership records to DB: {e}")
             raise
@@ -76,5 +77,5 @@ if __name__ == "__main__":
     ]
 
     for company in test_companies:
-        ingestor.extract_and_store(company["jurisdiction"], company["company_number"])
+        ingestor.extract(company["jurisdiction"], company["company_number"])
         sleep(1)
