@@ -64,14 +64,6 @@ class SyntheticOwnershipGenerator:
         except Exception as e:
             logger.error(f"Data ingestion failed: {e}")
             raise e
-    
-    # def store(self, df: pd.DataFrame):
-    #     try:
-    #         df.to_sql("company_ownership_links", self.engine, index=False, if_exists="append", method="multi")
-    #         logger.info(f"{len(df)} synthetic ownership records successfully written to PostgreSQL.")
-    #     except SQLAlchemyError as e:
-    #         logger.error(f"Failed to write synthetic records: {e}")
-    #         raise e
         
 if __name__ == "__main__":
     generator = SyntheticOwnershipGenerator(num_records=200)

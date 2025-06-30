@@ -40,14 +40,13 @@ def save_dataframe_to_db(df: pd.DataFrame, table_name: str, if_exists: str = 're
         engine = get_engine()
         logger.info(f"Attempting to save DataFrame to table '{table_name}' with if_exists='{if_exists}' and chunksize={chunksize}...")
         
-        # with engine.begin() as connection:
-        with engine.connect() as conn:
+        with engine.begin() as connection:
             df.to_sql(
                 table_name,
-                con=conn.connection,
-                index=False, 
-                if_exists=if_exists, 
-                method='multi', 
+                con=connection,
+                index=False,
+                if_exists=if_exists,
+                method='multi',
                 chunksize=chunksize
             )
 
