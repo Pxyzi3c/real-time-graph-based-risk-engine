@@ -1,24 +1,34 @@
 services:
     db:
         image: postgres:13
-        container_name: postgres_db
-        ports:
-            - "6543:5432"
         environment:
             POSTGRES_DB: ${POSTGRES_DB}
             POSTGRES_USER: ${POSTGRES_USER}
             POSTGRES_PASSWORD: ${POSTGRES_PASS}
             # POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+            - "6543:5432"
         volumes:
-            # - ./postgres-config/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf
-            - aml_postgres_data:/var/lib/postgresql/data
+            - pg_data:/var/lib/postgresql/data
         networks:
-            - aml_network
+            - backend
         restart: always
+    
+    ingestion:
+        build:
+            context: ./ingestion
+        env_file:
+            - ./ingestion/.env
+        volumes:
+            - ./data:/app/ingestion
+        depends_on:
+            - db
+        networks:
+            - backend
 
 volumes:
-    aml_postgres_data:
+    pg_data:
 
 networks:
-    aml_network:
+    backend:
         driver: bridge
