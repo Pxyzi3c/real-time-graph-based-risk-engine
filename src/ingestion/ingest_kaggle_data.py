@@ -11,6 +11,8 @@ from src.common.db import save_dataframe_to_db
 from src.ingestion.base_extractor import BaseExtractor
 from src.transformation.data_cleaning import DataCleaner
 from src.transformation.feature_engineering import CreditCardFeatureProcessor
+from pandera import DataFrameSchema, Column
+import pandera as pa
 
 from config.logging_config import setup_logging
 from config.settings import settings
