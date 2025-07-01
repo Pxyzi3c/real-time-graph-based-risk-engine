@@ -12,7 +12,7 @@ from src.ingestion.base_extractor import BaseExtractor
 from src.transformation.data_cleaning import DataCleaner
 from src.transformation.feature_engineering import CreditCardFeatureProcessor
 from pandera import DataFrameSchema, Column
-import pandera as pa
+import pandera.pandas as pa
 
 from config.logging_config import setup_logging
 from config.settings import settings
@@ -26,11 +26,17 @@ class KaggleDataExtractor(BaseExtractor):
         self.output_path = output_path
 
     def validate_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        expected_cols = {'Time', 'Amount', 'Class', *[f'V{i}' for i in range(1, 28)]}
-        if not expected_cols.issubset(set(df.columns)):
-            logger.error(f"Missing expected columns: {expected_cols - set(df.columns)}")
-            raise ValueError("Data schema does not match expected Kaggle structure.")
-        return df
+        # expected_cols = {'Time', 'Amount', 'Class', *[f'V{i}' for i in range(1, 28)]}
+        # if not expected_cols.issubset(set(df.columns)):
+        #     logger.error(f"Missing expected columns: {expected_cols - set(df.columns)}")
+        #     raise ValueError("Data schema does not match expected Kaggle structure.")
+        # return df
+        return DataFrameSchema({
+                "Time": Column(pa.Float),
+                "Amount": Column(pa.Float),
+                "Class": Column(pa.Int),
+                **{f"V{i}": Column(pa.Float) for i in range(1, 29)}
+            }).validate(df)
 
     def extract(self) -> pd.DataFrame:
         if not os.path.exists(self.input_path):
@@ -43,7 +49,7 @@ class KaggleDataExtractor(BaseExtractor):
         try:
             df = pd.read_csv(self.input_path)
             logger.info(f"Data extracted successfully from {self.input_path}")
-            df = self.validate_data(df)
+            self.validate_data(df)
             return df
         except FileNotFoundError as e:
             logger.error(f"File not found: {self.input_path}")

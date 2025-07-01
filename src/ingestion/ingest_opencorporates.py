@@ -60,20 +60,10 @@ class OpenCorporatesIngestor(BaseExtractor):
             raise
 
 if __name__ == "__main__":
-    api_key = settings.OPENCORPORATES_API_KEY
-    base_url = settings.OPENCORPORATES_BASE_URL
-
-    ingestor = OpenCorporatesIngestor(api_key, base_url)
-
+    ingestor = OpenCorporatesIngestor(settings.OPENCORPORATES_API_KEY, settings.OPENCORPORATES_BASE_URL)
     test_companies = [
-        {
-            "jurisdiction": "gb",
-            "company_number": "07495895"
-        },
-        {
-            "jurisdiction": "us_ca",
-            "company_number":  "C4305344"
-        }
+        {"jurisdiction": "gb", "company_number": "07495895"},
+        {"jurisdiction": "us_ca","company_number":  "C4305344"}
     ]
 
     for company in test_companies:

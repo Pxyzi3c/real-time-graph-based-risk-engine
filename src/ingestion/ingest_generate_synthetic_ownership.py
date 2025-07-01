@@ -66,5 +66,9 @@ class SyntheticOwnershipGenerator:
             raise e
         
 if __name__ == "__main__":
-    generator = SyntheticOwnershipGenerator(num_records=200)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--num_records', type=int, default=200)
+    args = parser.parse_args()
+    generator = SyntheticOwnershipGenerator(num_records=args.num_records)
     generator.run()
