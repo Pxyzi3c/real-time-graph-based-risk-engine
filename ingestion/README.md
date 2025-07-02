@@ -3,10 +3,10 @@
   * Python script → sends to Kafka topic "transactions"
   * Scheduled pull from OpenCorporates → "ownership_graph"
 
-### Goal:
+## Goal:
 Pull data from Kaggle and OpenCorporates API (or synthetic), preprocess, and push to PostgreSQL.
 
-### Objectives:
+## Objectives:
 * Design ingestion module as a Docker container.
 * Set up virtual env + requirements.
 * Implement `extract-clean-transform-load` pipeline.
