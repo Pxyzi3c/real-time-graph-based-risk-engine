@@ -18,10 +18,11 @@ services:
     ingestion:
         build:
             context: ./ingestion
+        container_name: ingestion
         env_file:
             - ./ingestion/.env
         volumes:
-            - ./data:/app/ingestion
+            - ./data:/app/data
         depends_on:
             - db
         networks:
