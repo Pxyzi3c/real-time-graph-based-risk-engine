@@ -12,6 +12,6 @@ Pull data from Kaggle and OpenCorporates API (or synthetic), preprocess, and pus
 * Implement `extract-clean-transform-load` pipeline.
 * Save cleaned Kaggle data to PostgreSQL.
 * Add synthetic OpenCorporates relationship data (fallback if API fails).
-* Create ingestion CLI (e.g. python main.py --source kaggle).
-* Mount ./data/ for CSV I/O consistency.
+* Create ingestion CLI (e.g. `python main.py --source kaggle`).
+* Mount `./data/` for CSV I/O consistency.
 * Unit test transformations (dropna, scaling, etc).
