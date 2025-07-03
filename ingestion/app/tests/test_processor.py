@@ -1,7 +1,7 @@
 import pandas as pd
 from ingestion.app.processor import DataProcessor
 
-def test_clean_kaggle():
+def test_clean_data():
     processor = DataProcessor()
     df = pd.DataFrame({
         "Amount": [100, 200, 300],
@@ -9,6 +9,6 @@ def test_clean_kaggle():
         "Class": [0, 1, 0]
     })
     processed_df = processor.clean_data(df.copy())
-    assert "Amount" in processed_df.columns
+    assert "Amount" in processed_df.columns, "Amount column should be present after cleaning"
     assert "Time" in processed_df.columns
     assert not processed_df.isnull().any().any(), "Data should not contain NaN values after cleaning"
