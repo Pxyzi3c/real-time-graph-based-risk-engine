@@ -45,7 +45,7 @@ def dataframe_with_mixed_types():
         "Time": [10, 20, 30],
         "Class": [0.0, 1.0, 0.0]
     })
-# =============================================================================================================
+
 def test_clean_data_removes_nans(processor_instance, dataframe_with_nans):
     initial_rows = len(dataframe_with_nans)
     processed_df = processor_instance.clean_data(dataframe_with_nans.copy())
@@ -80,3 +80,23 @@ def test_clean_data_with_no_nans_or_duplicates(processor_instance):
     assert len(processed_df) == initial_rows, "No rows should be dropped if no NaNs or duplicates."
     assert not processed_df.isnull().any().any(), "DataFrame should remain NaN-free."
     pd.testing.assert_frame_equal(processed_df, df_clean)
+
+# --- Test Cases for feature_engineering method ---
+
+def test_feature_engineering_class_astype_int(processor_instance, dataframe_with_mixed_types):
+    clean_df = processor_instance.clean_data(dataframe_with_mixed_types.copy())
+    
+    processed_df = processor_instance.feature_engineering(clean_df.copy())
+    
+    assert processed_df['Class'].dtype == 'int32' or processed_df['Class'].dtype == 'int64', \
+        f"Class column should be integer type, but is {processed_df['Class'].dtype}"
+
+def test_feature_engineering_preserves_other_columns(processor_instance, sample_dataframe):
+    clean_df = processor_instance.clean_data(sample_dataframe.copy())
+    original_v1 = clean_df['V1'].copy()
+    original_v2 = clean_df['V2'].copy()
+
+    processed_df = processor_instance.feature_engineering(clean_df.copy())
+
+    pd.testing.assert_series_equal(processed_df['V1'], original_v1, check_dtype=True)
+    pd.testing.assert_series_equal(processed_df['V2'], original_v2, check_dtype=True)
