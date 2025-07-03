@@ -9,7 +9,7 @@ import numpy as np
 from app.processor import DataProcessor
 
 @pytest.fixture
-def processor_intance():
+def processor_instance():
     return DataProcessor()
 
 @pytest.fixture
@@ -41,19 +41,42 @@ def dataframe_with_nans():
 @pytest.fixture
 def dataframe_with_mixed_types():
     return pd.DataFrame({
-        "Amount": ["100", "200", "300"], # Strings that should be float
+        "Amount": ["100", "200", "300"],
         "Time": [10, 20, 30],
-        "Class": [0.0, 1.0, 0.0] # Floats that should be int
+        "Class": [0.0, 1.0, 0.0]
     })
+# =============================================================================================================
+def test_clean_data_removes_nans(processor_instance, dataframe_with_nans):
+    initial_rows = len(dataframe_with_nans)
+    processed_df = processor_instance.clean_data(dataframe_with_nans.copy())
 
-def test_clean_data():
-    processor = DataProcessor()
-    df = pd.DataFrame({
-        "Amount": [100, 200, 300],
-        "Time": [10, 20, 30],
-        "Class": [0, 1, 0]
+    assert not processed_df.isnull().any().any(), "DataFrame should not contain any NaN values after cleaning."
+    assert len(processed_df) < initial_rows, "Rows with NaNs should have been dropped."
+    assert len(processed_df) == 1
+
+def test_clean_data_removes_duplicates(processor_instance, dataframe_with_duplicates):
+    initial_rows = len(dataframe_with_duplicates)
+    processed_df = processor_instance.clean_data(dataframe_with_duplicates.copy())
+
+    assert len(processed_df) < initial_rows, "Duplicate rows should have been dropped."
+    assert len(processed_df) == 2
+
+def test_clean_data_preserves_columns(processor_instance, sample_dataframe):
+    expected_columns = ["Amount", "Time", "Class", "V1", "V2"]
+    processed_df = processor_instance.clean_data(sample_dataframe.copy())
+
+    for col in expected_columns:
+        assert col in processed_df.columns, f"Column '{col}' should be present after cleaning."
+
+def test_clean_data_with_no_nans_or_duplicates(processor_instance):
+    df_clean = pd.DataFrame({
+        "Amount": [100.0, 200.0],
+        "Time": [10.0, 20.0],
+        "Class": [0, 1]
     })
-    processed_df = processor.clean_data(df.copy())
-    assert "Amount" in processed_df.columns, "Amount column should be present after cleaning"
-    assert "Time" in processed_df.columns
-    assert not processed_df.isnull().any().any(), "Data should not contain NaN values after cleaning"
+    initial_rows = len(df_clean)
+    processed_df = processor_instance.clean_data(df_clean.copy())
+
+    assert len(processed_df) == initial_rows, "No rows should be dropped if no NaNs or duplicates."
+    assert not processed_df.isnull().any().any(), "DataFrame should remain NaN-free."
+    pd.testing.assert_frame_equal(processed_df, df_clean)
