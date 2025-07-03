@@ -1,16 +1,11 @@
 import os
 import pandas as pd
 import logging
-import sys
-
-script_dir = os.path.dirname(__file__)
-project_root = os.path.abspath(os.path.join(script_dir, '..', '..'))
-sys.path.append(project_root)
 
 from pandera import DataFrameSchema, Column
 import pandera.pandas as pa
 
-from config.logging_config import setup_logging
+from ingestion.config.logging_config import setup_logging
 
 setup_logging()
 logger = logging.getLogger(__name__)

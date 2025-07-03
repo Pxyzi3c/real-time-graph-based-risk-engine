@@ -2,7 +2,7 @@ import pandas as pd
 import logging
 from sklearn.preprocessing import StandardScaler
 
-from config.logging_config import setup_logging
+from ingestion.config.logging_config import setup_logging
 setup_logging()
 
 logger = logging.getLogger(__name__)
