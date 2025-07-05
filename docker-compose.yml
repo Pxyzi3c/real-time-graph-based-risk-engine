@@ -30,6 +30,7 @@ services:
     
     zookeeper:
         image: confluentinc/cp-zookeeper:7.6.0
+        container_name: zookeeper
         environment:
             ZOOKEEPER_CLIENT_PORT: 2181
         ports:
@@ -39,6 +40,7 @@ services:
             
     kafka:
         image: confluentinc/cp-kafka:7.6.0
+        container_name: kafka
         depends_on:
             - zookeeper
         ports:
@@ -53,6 +55,7 @@ services:
 
     streaming:
         build: ./streaming
+        container_name: streaming
         volumes:
             - ./data:/app/data
         env_file:

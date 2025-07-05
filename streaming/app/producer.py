@@ -1,10 +1,8 @@
 import json
 import pandas as pd
 from kafka import KafkaProducer
-from dotenv import load_dotenv
 from config.settings import settings
 
-load_dotenv()
 KAFKA_SERVER = settings.KAFKA_BOOTSTRAP_SERVERS
 TOPIC = settings.TRANSACTION_TOPIC
 
