@@ -9,7 +9,8 @@ class Settings(BaseSettings):
     KAFKA_BOOTSTRAP_SERVERS: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
     KAFKA_TRANSACTIONS_TOPIC: str = os.getenv("KAFKA_TRANSACTIONS_TOPIC")
     KAFKA_ENRICHED_TRANSACTIONS_TOPIC: str = os.getenv("KAFKA_ENRICHED_TRANSACTIONS_TOPIC")
-
+    KAFKA_CONSUMER_GROUP_ID: str = os.getenv("KAFKA_CONSUMER_GROUP_ID", "fraud_detection_group")
+    
     POSTGRES_DB: str = os.getenv("POSTGRES_DB")
     POSTGRES_USER: str = os.getenv("POSTGRES_USER")
     POSTGRES_PASS: str = os.getenv("POSTGRES_PASS")
