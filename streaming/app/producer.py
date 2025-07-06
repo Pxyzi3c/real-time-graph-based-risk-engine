@@ -27,11 +27,12 @@ def get_kafka_producer() -> KafkaProducer:
                 bootstrap_servers=KAFKA_SERVER,
                 value_serializer=lambda v: json.dumps(v).encode("utf-8"),
                 acks='all',
-                retries=3,  
+                retries=3,
                 linger_ms=50,
                 batch_size=16384,
                 max_block_ms=30000
             )
+
             producer.bootstrap_connected()
             logger.info("Kafka producer initialized successfully.")
             return producer
@@ -43,13 +44,13 @@ def get_kafka_producer() -> KafkaProducer:
             time.sleep(delay)
     raise ConnectionError(f"Could not connect to Kafka brokers at {KAFKA_SERVER} after {retries} attempts.")
 
-# df = pd.read_csv(KAGGLE_PROCESSED_DATA)
-# logger.info(f"Producing {len(df)} records to topic '{TOPIC}'...")
+df = pd.read_csv(KAGGLE_PROCESSED_DATA)
+logger.info(f"Producing {len(df)} records to topic '{TOPIC}'...")
 
-# for _, row in df.iterrows():
-#     producer.send(TOPIC, row.to_dict())
+for _, row in df.iterrows():
+    producer.send(TOPIC, row.to_dict())
 
-# producer.flush()
+producer.flush()
 
 if __name__ == "__main__":
     producer = get_kafka_producer()
