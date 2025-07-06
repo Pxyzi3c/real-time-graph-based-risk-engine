@@ -7,13 +7,19 @@ load_dotenv()
 
 class Settings(BaseSettings):
     KAFKA_BOOTSTRAP_SERVERS: str = os.getenv("KAFKA_BOOTSTRAP_SERVERS")
-    TRANSACTIONS_TOPIC: str = os.getenv("TRANSACTIONS_TOPIC")
+    KAFKA_TRANSACTIONS_TOPIC: str = os.getenv("KAFKA_TRANSACTIONS_TOPIC")
+    KAFKA_ENRICHED_TRANSACTIONS_TOPIC: str = os.getenv("KAFKA_ENRICHED_TRANSACTIONS_TOPIC")
+
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER")
+    POSTGRES_PASS: str = os.getenv("POSTGRES_PASS")
+    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST")
+    POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", 6543))
+    DATABASE_URL: str = os.getenv("DATABASE_URL", f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASS}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}")
 
     KAGGLE_INPUT_PATH: str = os.getenv("KAGGLE_INPUT_PATH")
     KAGGLE_OUTPUT_PATH: str = os.getenv("KAGGLE_OUTPUT_PATH")
     
-    STREAMING_OUTPUT_DIR: str = os.getenv("STREAMING_OUTPUT_DIR")
-
     class Config:
         env_file = ".env"
         env_file_encoding = 'utf-8'

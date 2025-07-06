@@ -2,6 +2,7 @@ import logging
 import json
 import pandas as pd
 import time
+import argparse
 
 from kafka import KafkaProducer
 from kafka.errors import NoBrokersAvailable, KafkaError
@@ -44,14 +45,19 @@ def get_kafka_producer() -> KafkaProducer:
             time.sleep(delay)
     raise ConnectionError(f"Could not connect to Kafka brokers at {KAFKA_SERVER} after {retries} attempts.")
 
-df = pd.read_csv(KAGGLE_PROCESSED_DATA)
-logger.info(f"Producing {len(df)} records to topic '{TOPIC}'...")
+def produce_transactions():
+    producer = get_kafka_producer()
+    df = pd.read_csv(KAGGLE_PROCESSED_DATA)
+    logger.info(f"Producing {len(df)} records to topic '{TOPIC}'...")
 
-for _, row in df.iterrows():
-    producer.send(TOPIC, row.to_dict())
-
-producer.flush()
+    for _, row in df.iterrows():
+        producer.send(TOPIC, row.to_dict())
+    producer.flush()
 
 if __name__ == "__main__":
-    producer = get_kafka_producer()
-    producer()
+    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--limit", type=int, default=100)
+    args = parser.parse_args()
+
+    produce_transactions()

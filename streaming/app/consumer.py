@@ -7,6 +7,7 @@ from kafka import KafkaConsumer
 from app.enricher import enrich_transaction
 from config.settings import settings
 from config.logging_config import setup_logging
+from colorama import Fore, Style
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -29,5 +30,6 @@ for message in consumer:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     with open(f"OUTPUT_DIR/tx_{ts}.json", "w") as f:
         json.dump(enriched_tx, f, indent=4)
-        
+
+    logger.info(f"{Fore.CYAN + json.dumps(enriched_tx, indent=2) + Style.RESET_ALL}")
     logger.info(f"Enriched transaction saved to file: OUTPUT_DIR/tx_{ts}.json")
