@@ -1,63 +1,70 @@
-import logging
-import json
-import pandas as pd
 import time
-import argparse
-
-from kafka import KafkaProducer
-from kafka.errors import NoBrokersAvailable, KafkaError
-from typing import Dict, Any, Generator
-
-from config.settings import settings
-from config.logging_config import setup_logging
+import pandas as pd
+import logging
+from streaming.config.kafka_config import get_producer
+from streaming.config.settings import settings
+from streaming.app.utils import get_db_connection, serialize_message, setup_logging, safe_float
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
-KAFKA_SERVER = settings.KAFKA_BOOTSTRAP_SERVERS
-TOPIC = settings.TRANSACTIONS_TOPIC
-KAGGLE_PROCESSED_DATA = settings.KAGGLE_OUTPUT_PATH
+def delivery_report(err, msg):
+    if err is not None:
+        logger.error(f"Message delivery failed: {err}")
+    else:
+        logger.info(f"Message delivered to topic {msg.topic()} [{msg.parition()}] at offset {msg.offset()}")
 
-def get_kafka_producer() -> KafkaProducer:
-    retries = 5
-    delay = 5
-    for i in range(retries):
-        try:
-            logger.info(f"Attempting to connect to Kafka brokers at: {KAFKA_SERVER} (Attempt {i+1}/{retries})")
-            producer = KafkaProducer(
-                bootstrap_servers=KAFKA_SERVER,
-                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
-                acks='all',
-                retries=3,
-                linger_ms=50,
-                batch_size=16384,
-                max_block_ms=30000
-            )
+def produce_transactions_from_postgres(topic: str, batch_size: int = 100, delay_seconds: float = 0.1):
+    producer = get_producer()
+    conn = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-            producer.bootstrap_connected()
-            logger.info("Kafka producer initialized successfully.")
-            return producer
-        except NoBrokersAvailable:
-            logger.warning(f"No Kafka brokers available at {KAFKA_SERVER}. Retrying in {delay} seconds...")
-            time.sleep(delay)
-        except Exception as e:
-            logger.error(f"Failed to initialize Kafka producer: {e}", exec_info=True)
-            time.sleep(delay)
-    raise ConnectionError(f"Could not connect to Kafka brokers at {KAFKA_SERVER} after {retries} attempts.")
+        cursor.execute("SELECT COUNT(*) FROM credit_card_fraud;")
+        total_transactions = cursor.fetchone()[0]
+        logger.info(f"Total transactions in PostgreSQL: {total_transactions}")
 
-def produce_transactions():
-    producer = get_kafka_producer()
-    df = pd.read_csv(KAGGLE_PROCESSED_DATA)
-    logger.info(f"Producing {len(df)} records to topic '{TOPIC}'...")
+        offset = 0
+        while True:
+            query = f"SELECT * FROM credit_card_fraud ORDER BY id ASC OFFSET {offset} LIMIT {batch_size};"
+            df = pd.read_sql(query, conn)
 
-    for _, row in df.iterrows():
-        producer.send(TOPIC, row.to_dict())
-    producer.flush()
+            if df.empty:
+                logger.info("Reached end of transactions in PostgreSQL. Restarting from beginning.")
+                offset = 0
+                time.sleep(1)
+                continue
+
+            for index, row in df.iterrows():
+                transaction_data = row.to_dict()
+
+                transaction_data['Amount'] = safe_float(transaction_data.get('Amount'))
+                transaction_data['Class'] = int(transaction_data.get('Class', 0))
+
+                for key, value in transaction_data.items():
+                    if isinstance(value, (pd.Timestamp, pd.Timedelta)):
+                        transaction_data[key] = str(value)
+                    elif hasattr(value, 'hex'):
+                        transaction_data[key] = value.hex()
+
+                producer.produce(topic, key=str(transaction_data['id']).encode('utf-8'),
+                                 value=serialize_message(transaction_data),
+                                 callback=delivery_report)
+                producer.poll(0)
+
+            offset += len(df)
+            logger.info(f"Produced {len(df)} transactions. Total produced in this cycle: {offset}")
+            time.sleep(delay_seconds)
+    
+    except Exception as e:
+        logger.error(f"Error in producer: {e}")
+    finally:
+        if producer:
+            producer.flush()
+        if conn:
+            conn.close()
+        logger.info("Producer stopped.")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--limit", type=int, default=100)
-    args = parser.parse_args()
-
-    produce_transactions()
+    logger.info(f"Starting Kafka producer for topic: {settings.KAFKA_TRANSACTIONS_TOPIC}")
