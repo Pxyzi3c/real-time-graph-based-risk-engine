@@ -1,39 +1,31 @@
-from sqlalchemy import create_engine, text
-from sqlalchemy.pool import QueuePool
-import pandas as pd
-import logging 
+import logging
+import random
+from typing import Dict
 
-from config.settings import settings
-from config.logging_config import setup_logging
-
-setup_logging()
 logger = logging.getLogger(__name__)
 
-_engine = None
+KYC_DATA = {
+    "account_1": {
+        "country": random.choice(["PH", "US", "CN", "DE", "NG"]), 
+        "device_id": f"device_{random.randint(1000, 9999)}",
+        "email_domain": random.choice(["gmail.com", "outlook.com", "yahoo.com"])
+    },
+    "account_2": {
+        "country": random.choice(["PH", "US", "CN", "DE", "NG"]),
+        "device_id": f"device_{random.randint(1000, 9999)}",
+        "email_domain": random.choice(["gmail.com", "outlook.com", "yahoo.com"])
+    },
+    "account_3": {
+        "country": random.choice(["PH", "US", "CN", "DE", "NG"]),
+        "device_id": f"device_{random.randint(1000, 9999)}",
+        "email_domain": random.choice(["gmail.com", "outlook.com", "yahoo.com"])
+    },
+}
 
-def get_engine():
-    global _engine
-    if _engine is None:
-        try:
-            database_url = settings.DATABASE_URL
-            logger.info(f"Creating SQLAlchemy Engine for URL: {database_url.split('@')[-1]}")
+def load_kyc_data() -> Dict[str, Dict]:
+    logger.info("Simulating KYC data loading...")
+    return KYC_DATA
 
-            _engine = create_engine(
-                database_url,
-                poolclass=QueuePool,
-                pool_size=settings.DB_POOL_SIZE,
-                max_overflow=settings.DB_MAX_OVERFLOW,
-                pool_timeout=settings.DB_POOL_TIMEOUT,
-                pool_recycle=settings.DB_POOL_RECYCLE,
-            )
-
-            with _engine.connect() as connection:
-                connection.execute(text("SELECT 1"))
-                logger.info("Database connection test successful.")
-        except Exception as e:
-            logger.critical(f"Failed to create or connect to database engine: {e}", exc_info=True)
-            raise
-    return _engine
-
-def get_kyc_data():
-    # 
+def get_kyc_for_account(account_id: str) -> Dict:
+    kyc_data = load_kyc_data()
+    return kyc_data.get(account_id, {})
