@@ -1,12 +1,17 @@
 annotated-types==0.7.0
 colorama==0.4.6
 confluent-kafka==2.11.0
+cramjam==2.10.0
+fastparquet==2024.11.0
+fsspec==2025.5.1
 iniconfig==2.1.0
 kafka-python==2.2.15
 numpy==2.3.1
 packaging==25.0
 pandas==2.3.0
 pluggy==1.6.0
+psycopg2-binary==2.9.10
+pyarrow==20.0.0
 pydantic==2.11.7
 pydantic-settings==2.10.1
 pydantic_core==2.33.2
