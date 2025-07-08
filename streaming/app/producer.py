@@ -74,8 +74,7 @@ import time
 import pandas as pd
 from confluent_kafka import Producer
 from config.kafka_config import kafka_config
-from config.settings import settings
-from config.db import get_engine
+from config.db import get_db_connection
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +91,7 @@ class KafkaProducer:
     
     def produce_from_postgresql(self, table_name: str, topic: str, batch_size: int = 1000):
         try:
-            conn = get_engine().connect()
+            conn = get_db_connection()
             if conn:
                 logger.info(f"Connected to PostgreSQL. Starting to read data from table: {table_name}")
                 query = f"SELECT * FROM {table_name};"
@@ -126,4 +125,4 @@ if __name__ == "__main__":
     producer_app.produce_from_postgresql("credit_card_fraud", kafka_config.TRANSACTIONS_TOPIC)
 
     logger.info(f"Producing data from 'company_ownership_links' table to topic '{kafka_config.OWNERSHIP_GRAPH_TOPIC}'...")
-    producer_app.produce_from_postgresql("company_owership_links", kafka_config.OWNERSHIP_GRAPH_TOPIC)
+    producer_app.produce_from_postgresql("company_ownership_links", kafka_config.OWNERSHIP_GRAPH_TOPIC)
