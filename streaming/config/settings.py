@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", 6543))
     DATABASE_URL: str = os.getenv("DATABASE_URL", f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASS}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}")
 
+    DB_POOL_SIZE: int = 10
+    DB_MAX_OVERFLOW: int = 20
+    DB_POOL_TIMEOUT: int = 30
+    DB_POOL_RECYCLE: int = 3600
+    
     KAGGLE_INPUT_PATH: str = os.getenv("KAGGLE_INPUT_PATH")
     KAGGLE_OUTPUT_PATH: str = os.getenv("KAGGLE_OUTPUT_PATH")
     
