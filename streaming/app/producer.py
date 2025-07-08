@@ -90,8 +90,31 @@ class KafkaProducer:
         else:
             logger.info(f"Message delivered to topic '{msg.topic()}' [{msg.partition()}] at offset {msg.offset()}")
     
-    def produce_from_postgres(self, table_name: str, topic: str, batch_size: int = 100):
-        #
+    def produce_from_postgresql(self, table_name: str, topic: str, batch_size: int = 1000):
+        try:
+            conn = get_engine().connect()
+            if conn:
+                logger.info(f"Connected to PostgreSQL. Starting to read data from table: {table_name}")
+                query = f"SELECT * FROM {table_name};"
+                
+                for chunk in pd.read_sql_query(query, conn, chunksize=batch_size):
+                    for index, row in chunk.iterrows():
+                        key = str(row['id']) if 'id' in row else str(index)
+                        value = row.to_json()
+                        self.producer.produce(topic, key=key.encode('utf-8'), value=value.encode('utf-8'), callback=self.delivery_report)
+                        self.producer.poll(0)
+                    logger.info(f"Produced {len(chunk)} messages to topic '{topic}'.")
+                    time.sleep(0.1)
+
+                self.producer.flush()
+                logger.info(f"Finished producing data from '{table_name}' to topic '{topic}'.")
+            else:
+                logger.error("Failed to establish database connection.")
+        except Exception as e:
+            logger.error(f"Error producing from PostgreSQL: {e}")
+        finally:
+            if conn:
+                conn.close()
 
 if __name__ == "__main__":
     from config.logging_config import setup_logging
