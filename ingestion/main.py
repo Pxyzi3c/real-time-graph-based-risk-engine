@@ -82,7 +82,7 @@ class Ingestion:
         except Exception as e:
             logger.error(f"Data ingestion failed: {e}")
             raise e
-
+    
 if __name__ == "__main__":
     ingest = Ingestion(settings.KAGGLE_INPUT_PATH, settings.KAGGLE_OUTPUT_PATH)
 
