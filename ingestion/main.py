@@ -89,7 +89,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--source", 
-        choices=["kaggle", "synthetic"],
+        choices=["kaggle", "synthetic_companies"],
         required=True,
         help="Specify the data source for ingestion."
     )
