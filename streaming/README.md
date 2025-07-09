@@ -32,3 +32,18 @@ docker exec kafka kafka-topics --create --topic enriched_transactions --bootstra
 ```bash
 docker exec kafka kafka-topics --list --bootstrap-server kafka:9092
 ```
+
+4. Execute Producers
+Once all containers are up, you can execute the producer script within the streaming container.
+```bash
+docker exec -it streaming python app/producer.py
+```
+
+5. Verify messages in topic
+```bash
+# To consume from transactions topic (run in a new terminal)
+docker exec -it kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic transactions --from-beginning
+
+# To consume from ownership_graph topic (run in another new terminal)
+docker exec -it kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic ownership_graph --from-beginning
+```
