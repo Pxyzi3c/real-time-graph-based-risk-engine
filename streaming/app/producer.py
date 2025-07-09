@@ -3,8 +3,8 @@ import json
 import time
 import pandas as pd
 from confluent_kafka import Producer
-from streaming.config.kafka_config import kafka_config
-from streaming.config.db import get_db_connection
+from config.kafka_config import kafka_config
+from config.db import get_db_connection
 
 logger = logging.getLogger(__name__)
 

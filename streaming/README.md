@@ -20,6 +20,8 @@ docker compose up -d
 ```
 
 2. Connect to Kafka Container and Create Topics
+> [!NOTE]
+> Already accomplished when you run the docker compose through init_kafka
 ```bash
 docker exec kafka kafka-topics --create --topic transactions --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
 docker exec kafka kafka-topics --create --topic ownership_graph --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
