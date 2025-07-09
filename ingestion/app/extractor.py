@@ -1,10 +1,9 @@
 import os
 import pandas as pd
 import logging
-
-from pandera import DataFrameSchema, Column
 import pandera.pandas as pa
 
+from pandera import DataFrameSchema, Column
 from config.logging_config import setup_logging
 
 setup_logging()

@@ -1,4 +1,3 @@
-# docker-compose.yml
 services:
     db:
         image: postgres:13
@@ -88,10 +87,8 @@ services:
         networks:
             - backend
 
-
 volumes:
     pg_data:
-
 
 networks:
     backend:
