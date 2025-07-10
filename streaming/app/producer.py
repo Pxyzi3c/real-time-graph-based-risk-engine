@@ -1,5 +1,4 @@
 import logging
-import json
 import time
 import pandas as pd
 from confluent_kafka import Producer
