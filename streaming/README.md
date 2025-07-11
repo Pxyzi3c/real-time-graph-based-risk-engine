@@ -47,8 +47,8 @@ docker exec -it streaming python app/producer.py
 5. Verify messages in topic
 ```bash
 # To consume from transactions topic (run in a new terminal)
-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic transactions --from-beginning
+kafka-console-consumer --bootstrap-server localhost:9092 --topic transactions --from-beginning
 
 # To consume from ownership_graph topic (run in another new terminal)
-kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic ownership_graph --from-beginning
+kafka-console-consumer --bootstrap-server localhost:9092 --topic ownership_graph --from-beginning
 ```

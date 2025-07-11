@@ -1,293 +1,151 @@
 import logging
 import json
 import time
-import pandas as pd
 from confluent_kafka import Consumer, KafkaException, Producer
+import pandas as pd
+from app.enricher import TransactionEnricher
+from app.db import save_dataframe_to_db
+from app.utils import get_kafka_consumer_config, get_kafka_producer_config
 from config.settings import settings
 from config.logging_config import setup_logging
-from app.db import save_dataframe_to_db
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
-ownership_graph_cache = {}
-kyc_data_cache = {}
+class KafkaConsumer:
+    def __init__(self, consumer_group_id: str, input_topic: str, output_topic: str, bootstrap_servers: str):
+        self.input_topic = input_topic
+        self.output_topic = output_topic
+        self.bootstrap_servers = bootstrap_servers
+        self.consumer = Consumer(get_kafka_consumer_config(consumer_group_id))
+        self.producer = Producer(get_kafka_producer_config())
+        self.enricher = TransactionEnricher()
+        self.consumer.subscribe([self.input_topic, settings.KAFKA_OWNERSHIP_GRAPH_TOPIC])
+        logger.info(f"Kafka Consumer initialized for input topic: {self.input_topic}, output topic: {self.output_topic}")
+        self.running = True
 
-class KafkaConsumerService:
-    def __init__(self, topics: list, group_id: str):
-        self.consumer = Consumer({
-            'bootstrap.servers': settings.KAFKA_BOOTSTRAP_SERVERS,
-            'group.id': group_id,
-            'auto.offset.reset': 'earliest', # Start consuming from the beginning of the topic if no offset is committed
-            'enable.auto.commit': False # Manual commit for precise control
-        })
-        self.topics = topics
-        self.consumer.subscribe(self.topics)
-        logger.info(f"Kafka Consumer initialized for topics: {', '.join(topics)} with group ID: {group_id}")
-
-    def poll_message(self, timeout: float = 1.0):
-        """Polls for a single message."""
-        return self.consumer.poll(timeout)
-
-    def commit_offsets(self, message):
-        """Commits the offset of a processed message."""
-        self.consumer.commit(message=message, asynchronous=True)
-        logger.debug(f"Committed offset for topic '{message.topic()}' partition {message.partition()} offset {message.offset()}")
-
-    def close(self):
-        """Closes the consumer."""
-        self.consumer.close()
-        logger.info("Kafka Consumer closed.")
-
-class KafkaStreamsProcessor:
-    def __init__(self):
-        self.transactions_consumer = KafkaConsumerService(
-            topics=[settings.KAFKA_TRANSACTIONS_TOPIC],
-            group_id=f"{settings.KAFKA_CONSUMER_GROUP_ID}-transactions"
-        )
-        self.ownership_consumer = KafkaConsumerService(
-            topics=[settings.OWNERSHIP_GRAPH_TOPIC],
-            group_id=f"{settings.KAFKA_CONSUMER_GROUP_ID}-ownership"
-        )
-        self.producer = Producer({
-            'bootstrap.servers': settings.KAFKA_BOOTSTRAP_SERVERS,
-            'client.id': 'kafka-enrichment-producer'
-        })
-        logger.info("Kafka Streams Processor initialized.")
-
-    def delivery_report(self, err, msg):
-        """Callback function for successful or failed message delivery for enriched data."""
+    def _delivery_report(self, err, msg):
+        """Callback function for Kafka message delivery reports for the producer."""
         if err is not None:
-            logger.error(f"Enriched message delivery failed: {err}")
+            logger.error(f"Message delivery failed to enriched topic: {err}")
         else:
-            logger.debug(f"Enriched message delivered to topic '{msg.topic()}' [{msg.partition()}] at offset {msg.offset()}")
-            pass
+            logger.debug(f"Message delivered to enriched topic '{msg.topic()}' [{msg.partition()}] at offset {msg.offset()}")
 
-    def produce_enriched_message(self, value: dict):
-        """Produces an enriched message to the enriched transactions topic."""
+    def _process_message(self, msg_value: bytes) -> dict:
+        """Processes and enriches a single transaction message."""
         try:
-            self.producer.produce(
-                settings.KAFKA_ENRICHED_TRANSACTIONS_TOPIC,
-                key=str(value.get('id', 'unknown')).encode('utf-8'), # Use transaction 'id' as key
-                value=json.dumps(value).encode('utf-8'),
-                callback=self.delivery_report
-            )
-            self.producer.poll(0)
+            transaction_data = json.loads(msg_value.decode('utf-8'))
+            enriched_transaction = self.enricher.enrich_transaction(transaction_data)
+            return enriched_transaction
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to decode JSON from message: {e}")
+            return {} # Return empty dict or handle error appropriately
         except Exception as e:
-            logger.error(f"Failed to produce enriched message: {e}")
+            logger.error(f"Error during transaction enrichment: {e}")
+            return {}
 
-    def load_ownership_data_to_cache(self, msg_value: dict):
-        """Loads ownership data into an in-memory cache."""
-        company_number = msg_value.get('company_number')
-        related_entity_name = msg_value.get('related_entity_name')
-        if company_number and related_entity_name:
-            # This is a simplification; a real graph would need a more sophisticated lookup.
-            if company_number not in ownership_graph_cache:
-                ownership_graph_cache[company_number] = []
-            ownership_graph_cache[company_number].append(msg_value)
-            # Also store by related entity name if it's a company
-            if msg_value.get('related_entity_type') == 'company':
-                if related_entity_name not in ownership_graph_cache:
-                    ownership_graph_cache[related_entity_name] = []
-                ownership_graph_cache[related_entity_name].append(msg_value)
-            logger.debug(f"Cached ownership link for {company_number} -> {related_entity_name}")
-        else:
-            logger.warning(f"Invalid ownership data received for caching: {msg_value}")
-
-    def enrich_transaction(self, transaction: dict) -> dict:
-        """
-        Enriches a transaction with ownership and (placeholder) KYC data.
-
-        Args:
-            transaction (dict): The raw transaction data.
-
-        Returns:
-            dict: The enriched transaction data.
-        """
-        enriched_transaction = transaction.copy()
-
-        # Placeholder for KYC enrichment
-        # In a real scenario, this would involve looking up customer_id/account_id
-        # in kyc_data_cache or a separate service.
-        # For now, we'll just add a placeholder.
-        enriched_transaction['kyc_status'] = "not_available"
-        enriched_transaction['customer_geo'] = "unknown" # Placeholder
-        # TODO: Implement actual KYC lookup when data is available.
-
-        # Ownership graph enrichment
-        # This is a simplified lookup. In a real AML system, this would involve
-        # complex graph traversal to find ultimate beneficial owners or related entities.
-        # For this project, we'll demonstrate a basic direct lookup.
-        # Assuming transaction might have a 'merchant_company_number' or 'recipient_company_number'
-        # For the Kaggle data, we don't have direct company links.
-        # Let's assume we derive a 'related_company_id' from transaction data or
-        # simulate it for demonstration purposes.
-
-        # For demonstration: let's assume a 'V_dummy_company_id' column in the Kaggle data
-        # maps to a synthetic company number. This will need to be added to the Kaggle data
-        # during ingestion or simulated here.
-        # Since we don't have a direct link from Kaggle transaction to a company,
-        # we'll simulate a lookup based on a random "V" feature if it exists,
-        # or just add an empty list.
-
-        enriched_transaction['related_ownership_links'] = []
-        
-        # Example: Try to link based on some transaction attribute that *could* map to a company
-        # As Kaggle data has V1-V28, let's pick one (e.g., V17) and map it to a company number
-        # This is a strong assumption for demonstration purposes.
-        # In a real scenario, we'd have `merchant_id` or `receiving_bank_id` that maps to a company.
-        # We need a more robust way to link transactions to entities in the ownership graph.
-        
-        # FOR DEMONSTRATION PURPOSES: Let's randomly pick a 'company_number' from our cache
-        # and attach some ownership links to a percentage of transactions.
-        if ownership_graph_cache and transaction.get('id') % 10 == 0: # Enrich every 10th transaction
-            random_company_number = list(ownership_graph_cache.keys())[transaction.get('id') % len(ownership_graph_cache)]
-            enriched_transaction['linked_company_id'] = random_company_number
-            enriched_transaction['related_ownership_links'] = ownership_graph_cache.get(random_company_number, [])
-            logger.debug(f"Transaction ID {transaction.get('id')} enriched with company {random_company_number}")
-        else:
-             enriched_transaction['linked_company_id'] = None
-             enriched_transaction['related_ownership_links'] = []
-
-        return enriched_transaction
-
-    def process_messages(self):
-        """
-        Main loop for consuming and processing Kafka messages.
-        Continuously polls for messages from both transaction and ownership topics.
-        """
-        logger.info("Starting Kafka Streams Processor main loop...")
-        running = True
+    def _handle_ownership_graph_message(self, msg_value: bytes):
+        """Handles updates to the ownership graph data."""
         try:
-            while running:
-                # Poll for ownership graph updates
-                msg_ownership = self.ownership_consumer.poll_message(timeout=0.1)
-                if msg_ownership is not None:
-                    if msg_ownership.error():
-                        if msg_ownership.error().code() == KafkaException.PARTITION_EOF:
-                            # End of partition event - not an error
-                            continue
-                        else:
-                            logger.error(f"Ownership consumer error: {msg_ownership.error()}")
-                            running = False
-                    else:
-                        try:
-                            ownership_data = json.loads(msg_ownership.value().decode('utf-8'))
-                            self.load_ownership_data_to_cache(ownership_data)
-                            self.ownership_consumer.commit_offsets(msg_ownership)
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Failed to decode ownership JSON: {e} - Message: {msg_ownership.value().decode('utf-8', errors='ignore')}")
-                        except Exception as e:
-                            logger.error(f"Error processing ownership message: {e}")
-                            self.ownership_consumer.commit_offsets(msg_ownership) # Commit even on error to avoid reprocessing bad messages
-                
-                # Poll for transaction updates
-                msg_transaction = self.transactions_consumer.poll_message(timeout=0.5) # Longer timeout for transactions
-                if msg_transaction is not None:
-                    if msg_transaction.error():
-                        if msg_transaction.error().code() == KafkaException.PARTITION_EOF:
-                            # End of partition event - not an error
-                            continue
-                        else:
-                            logger.error(f"Transaction consumer error: {msg_transaction.error()}")
-                            running = False
-                    else:
-                        try:
-                            transaction_data = json.loads(msg_transaction.value().decode('utf-8'))
-                            
-                            # Perform enrichment
-                            enriched_transaction = self.enrich_transaction(transaction_data)
-                            
-                            # Produce enriched message to new topic
-                            self.produce_enriched_message(enriched_transaction)
-                            
-                            self.transactions_consumer.commit_offsets(msg_transaction)
-                            
-                        except json.JSONDecodeError as e:
-                            logger.error(f"Failed to decode transaction JSON: {e} - Message: {msg_transaction.value().decode('utf-8', errors='ignore')}")
-                        except Exception as e:
-                            logger.error(f"Error processing transaction message: {e}")
-                            self.transactions_consumer.commit_offsets(msg_transaction) # Commit even on error
-
-                # Flush producer periodically
-                self.producer.poll(0) # Poll for delivery reports
-                time.sleep(0.01) # Small delay to prevent busy-waiting
-
-        except KeyboardInterrupt:
-            logger.info("Stopping Kafka Streams Processor due to KeyboardInterrupt.")
+            # For now, we simply re-load the ownership graph in the enricher.
+            # In a production system, this might involve an in-memory update
+            # or a more sophisticated state management for the enricher.
+            self.enricher._load_ownership_graph_data() 
+            logger.info("Ownership graph data reloaded due to update.")
         except Exception as e:
-            logger.critical(f"Unhandled error in Kafka Streams Processor: {e}", exc_info=True)
-        finally:
-            self.transactions_consumer.close()
-            self.ownership_consumer.close()
-            self.producer.flush(10) # Final flush
-            logger.info("Kafka Streams Processor gracefully shut down.")
+            logger.error(f"Failed to update ownership graph from Kafka message: {e}")
 
-def consume_and_save_enriched_transactions():
-    """
-    Consumes enriched transactions from Kafka and saves them to PostgreSQL.
-    This acts as the final sink for our streaming layer.
-    """
-    logger.info(f"Starting enriched transaction consumer for topic '{settings.KAFKA_ENRICHED_TRANSACTIONS_TOPIC}' and saving to PostgreSQL.")
-    consumer_service = KafkaConsumerService(
-        topics=[settings.KAFKA_ENRICHED_TRANSACTIONS_TOPIC],
-        group_id=f"{settings.KAFKA_CONSUMER_GROUP_ID}-enriched-sink"
-    )
-    
-    enriched_transactions_batch = []
-    batch_size = 100
-    last_save_time = time.time()
-    save_interval_seconds = 5
+    def start_consuming(self):
+        """Starts consuming messages from Kafka topics."""
+        logger.info(f"Starting to consume messages from topics: {self.input_topic}, {settings.KAFKA_OWNERSHIP_GRAPH_TOPIC}")
+        batch = []
+        batch_size = 100
+        flush_interval = 5
 
-    running = True
-    try:
-        while running:
-            msg = consumer_service.poll_message(timeout=1.0)
+        last_flush_time = time.time()
+
+        while self.running:
+            msg = self.consumer.poll(timeout=1.0)
+
             if msg is None:
-                # If no message for a while, check if it's time to save existing batch
-                if len(enriched_transactions_batch) > 0 and (time.time() - last_save_time) > save_interval_seconds:
-                    logger.info(f"Timeout reached, saving {len(enriched_transactions_batch)} enriched transactions to DB.")
-                    save_dataframe_to_db(pd.DataFrame(enriched_transactions_batch), 'enriched_transactions', if_exists='append')
-                    enriched_transactions_batch = []
-                    last_save_time = time.time()
+                if batch and (time.time() - last_flush_time >= flush_interval):
+                    self._process_and_save_batch(batch)
+                    batch = []
+                    last_flush_time = time.time()
                 continue
-            
             if msg.error():
-                if msg.error().code() == KafkaException.PARTITION_EOF:
-                    # End of partition event - not an error
-                    continue
+                if msg.error().code() == -191:
+                    logger.debug(f"End of partition reached for {msg.topic()} [{msg.partition()}]")
                 else:
-                    logger.error(f"Enriched consumer error: {msg.error()}")
-                    running = False
-            else:
-                try:
-                    enriched_data = json.loads(msg.value().decode('utf-8'))
-                    enriched_transactions_batch.append(enriched_data)
+                    logger.error(f"Kafka consumer error: {msg.error()}")
+                continue
 
-                    if len(enriched_transactions_batch) >= batch_size:
-                        logger.info(f"Batch size reached, saving {len(enriched_transactions_batch)} enriched transactions to DB.")
-                        save_dataframe_to_db(pd.DataFrame(enriched_transactions_batch), 'enriched_transactions', if_exists='append')
-                        enriched_transactions_batch = []
-                        last_save_time = time.time()
-                    
-                    consumer_service.commit_offsets(msg)
+            if msg.topic() == self.input_topic:
+                enriched_data = self._process_message(msg.value())
+                if enriched_data:
+                    batch.append(enriched_data)
+                    self.producer.produce(
+                        topic=self.output_topic,
+                        key=msg.key(),
+                        value=json.dumps(enriched_data).encode('utf-8'),
+                        callback=self._delivery_report
+                    )
+            elif msg.topic() == settings.KAFKA_OWNERSHIP_GRAPH_TOPIC:
+                self._handle_ownership_graph_message(msg.value())
+            
+            if len(batch) >= batch_size or (time.time() - last_flush_time >= flush_interval and batch):
+                self._process_and_save_batch(batch)
+                batch = []
+                last_flush_time = time.time()
 
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to decode enriched JSON: {e} - Message: {msg.value().decode('utf-8', errors='ignore')}")
-                except Exception as e:
-                    logger.error(f"Error processing enriched message: {e}")
-                    consumer_service.commit_offsets(msg) # Commit even on error to avoid reprocessing bad messages
+            self.producer.poll(0) # Poll producer for delivery reports
 
-    except KeyboardInterrupt:
-        logger.info("Stopping enriched transaction consumer due to KeyboardInterrupt.")
-    except Exception as e:
-        logger.critical(f"Unhandled error in enriched transaction consumer: {e}", exc_info=True)
-    finally:
-        if len(enriched_transactions_batch) > 0:
-            logger.info(f"Final flush: saving {len(enriched_transactions_batch)} remaining enriched transactions to DB.")
-            save_dataframe_to_db(pd.DataFrame(enriched_transactions_batch), 'enriched_transactions', if_exists='append')
-        consumer_service.close()
-        logger.info("Enriched transaction consumer gracefully shut down.")
+        # Flush any remaining messages in the batch before shutting down
+        if batch:
+            self._process_and_save_batch(batch)
+        self.producer.flush()
+        self.consumer.close()
+        logger.info("Kafka Consumer stopped.")
 
-if __name__ == '__main__':
-    logger.info("Kafka Consumer module. Run specific functions from main.py or testing.")
+    def _process_and_save_batch(self, batch: list):
+        """Processes a batch of enriched transactions and saves them to PostgreSQL."""
+        if not batch:
+            return
+        
+        try:
+            # Flatten the nested dictionaries (kyc_info, ownership_links) for PostgreSQL
+            processed_batch = []
+            for item in batch:
+                flat_item = item.copy()
+                kyc_info = flat_item.pop('kyc_info', {})
+                ownership_links = flat_item.pop('ownership_links', [])
+
+                # Prefix KYC keys to avoid collision and flatten
+                for k, v in kyc_info.items():
+                    flat_item[f'kyc_{k}'] = v
+                
+                flat_item['ownership_links_json'] = json.dumps(ownership_links)
+                
+                processed_batch.append(flat_item)
+
+            df = pd.DataFrame(processed_batch)
+            
+            # Ensure column names are valid for PostgreSQL
+            df.columns = df.columns.str.replace('[^0-9a-zA-Z_]+', '_', regex=True).str.lower()
+            
+            # Select relevant columns for the enriched transactions table
+            # You'll need to define what columns you expect in the final enriched table
+            # Based on Kaggle data, we have Time, V1-V28, Amount, Class
+            # Plus our added customer_id, kyc_*, ownership_links_json
+            # Need to align this with your actual enriched schema
+            # For now, let's save all flattened columns.
+            
+            save_dataframe_to_db(df, 'enriched_transactions', if_exists='append')
+            logger.info(f"Successfully saved {len(batch)} enriched transactions to PostgreSQL.")
+        except Exception as e:
+            logger.error(f"Failed to process and save batch of enriched transactions: {e}")
+
+    def stop_consuming(self):
+        """Stops the Kafka consumer."""
+        self.running = False
+        logger.info("Stopping Kafka Consumer...")
