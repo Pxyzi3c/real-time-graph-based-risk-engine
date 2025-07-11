@@ -24,7 +24,7 @@ def generate_fake_kyc_data(num_records: int) -> pd.DataFrame:
             "email": fake.email(),
             "phone_number": fake.phone_number(),
             "address": fake.address(),
-            "country": fake.country_code(),
+            "country": random.choice(['us_ca', 'gb', 'au', 'de', 'fr']),
             "date_of_birth": fake.date_of_birth(minimum_age=18, maximum_age=90).isoformat(),
             "gender": random.choice(['Male', 'Female', 'Other']),
             "occupation": fake.job(),
