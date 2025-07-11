@@ -22,15 +22,20 @@ docker compose up -d
 2. Connect to Kafka Container and Create Topics
 > [!NOTE]
 > Already accomplished when you run the docker compose through init_kafka
+Access kafka command line
 ```bash
-docker exec kafka kafka-topics --create --topic transactions --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
-docker exec kafka kafka-topics --create --topic ownership_graph --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
-docker exec kafka kafka-topics --create --topic enriched_transactions --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
+docker exec -it kafka bash
+```
+Create kafka topics
+```bash
+kafka kafka-topics --create --topic transactions --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
+kafka kafka-topics --create --topic ownership_graph --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
+kafka kafka-topics --create --topic enriched_transactions --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
 ```
 
 3. Verify Topic Creation
 ```bash
-docker exec kafka kafka-topics --list --bootstrap-server kafka:9092
+kafka kafka-topics --list --bootstrap-server kafka:9092
 ```
 
 4. Execute Producers
@@ -42,8 +47,8 @@ docker exec -it streaming python app/producer.py
 5. Verify messages in topic
 ```bash
 # To consume from transactions topic (run in a new terminal)
-docker exec -it kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic transactions --from-beginning
+kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic transactions --from-beginning
 
 # To consume from ownership_graph topic (run in another new terminal)
-docker exec -it kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic ownership_graph --from-beginning
+kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic ownership_graph --from-beginning
 ```
