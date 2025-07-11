@@ -1,57 +1,104 @@
 import logging
+import json
 import time
 import pandas as pd
-from confluent_kafka import Producer
-from config.kafka_config import kafka_config
-from streaming.app.db import get_db_connection
+from confluent_kafka import Producer, KafkaException
+from config.settings import settings
+from app.utils import create_kafka_topics, get_kafka_producer_config
+from config.logging_config import setup_logging
 
+setup_logging()
 logger = logging.getLogger(__name__)
 
 class KafkaProducer:
-    def __init__(self):
-        self.producer = Producer({'bootstrap.servers': kafka_config.BOOTSTRAP_SERVERS})
-        logger.info(f"Kafka Producer initialized with bootstrap servers: {kafka_config.BOOTSTRAP_SERVERS}")
+    def __init__(self, topic: str, bootstrap_servers: str):
+        self.topic = topic
+        self.bootstrap_servers = bootstrap_servers
+        self.producer = None
+        self._initialize_producer()
+
+    def _initialize_producer(self):
+        """Initializes the Kafka producer and creates topics if they don't exist."""
+        try:
+            create_kafka_topics(self.bootstrap_servers, 
+                                [settings.KAFKA_TRANSACTIONS_TOPIC, 
+                                 settings.KAFKA_OWNERSHIP_GRAPH_TOPIC,
+                                 settings.KAFKA_ENRICHED_TRANSACTIONS_TOPIC])
+            self.producer = Producer(get_kafka_producer_config())
+            logger.info(f"Kafka Producer initialized for topic: {self.topic}")
+        except Exception as e:
+            logger.error(f"Failed to initialize Kafka Producer: {e}")
+            raise
 
     def delivery_report(self, err, msg):
+        """Callback function for Kafka message delivery reports."""
         if err is not None:
             logger.error(f"Message delivery failed: {err}")
         else:
             logger.info(f"Message delivered to topic '{msg.topic()}' [{msg.partition()}] at offset {msg.offset()}")
-    
-    def produce_from_postgresql(self, table_name: str, topic: str, batch_size: int = 1000):
+
+    def produce_message(self, key: str, value: dict):
+        """Produces a single message to the Kafka topic."""
         try:
-            conn = get_db_connection()
-            if conn:
-                logger.info(f"Connected to PostgreSQL. Starting to read data from table: {table_name}")
-                query = f"SELECT * FROM {table_name};"
-                
-                for chunk in pd.read_sql_query(query, conn, chunksize=batch_size):
-                    for index, row in chunk.iterrows():
-                        key = str(row['id']) if 'id' in row else str(index)
-                        value = row.to_json()
-                        self.producer.produce(topic, key=key.encode('utf-8'), value=value.encode('utf-8'), callback=self.delivery_report)
-                        self.producer.poll(0)
-                    logger.info(f"Produced {len(chunk)} messages to topic '{topic}'.")
-                    time.sleep(0.1)
-
-                self.producer.flush()
-                logger.info(f"Finished producing data from '{table_name}' to topic '{topic}'.")
-            else:
-                logger.error("Failed to establish database connection.")
+            self.producer.produce(
+                topic=self.topic,
+                key=key.encode('utf-8'),
+                value=json.dumps(value).encode('utf-8'),
+                callback=self.delivery_report
+            )
+            self.producer.poll(0) # Poll for callbacks immediately
+        except KafkaException as e:
+            logger.error(f"Kafka production error: {e}")
+            raise
         except Exception as e:
-            logger.error(f"Error producing from PostgreSQL: {e}")
-        finally:
-            if conn:
-                conn.close()
+            logger.error(f"An unexpected error occurred during message production: {e}")
+            raise
 
-if __name__ == "__main__":
-    from config.logging_config import setup_logging
-    setup_logging()
+    def flush(self):
+        """Flushes any outstanding messages to the broker."""
+        self.producer.flush()
+        logger.info(f"Kafka Producer flushed for topic: {self.topic}")
 
-    producer_app = KafkaProducer()
+    def __del__(self):
+        """Ensures all messages are flushed when the producer object is deleted."""
+        if self.producer:
+            self.flush()
 
-    logger.info(f"Producing data from 'credit_card_fraud' table to topic '{kafka_config.TRANSACTIONS_TOPIC}'...")
-    producer_app.produce_from_postgresql("credit_card_fraud", kafka_config.TRANSACTIONS_TOPIC)
+def push_transactions_to_kafka(df: pd.DataFrame, topic: str, bootstrap_servers: str):
+    """
+    Pushes transaction data from a Pandas DataFrame to a Kafka topic.
+    Each row in the DataFrame is considered a transaction.
+    """
+    transaction_producer = KafkaProducer(topic, bootstrap_servers)
+    logger.info(f"Starting to push {len(df)} transactions to Kafka topic '{topic}'...")
 
-    logger.info(f"Producing data from 'company_ownership_links' table to topic '{kafka_config.OWNERSHIP_GRAPH_TOPIC}'...")
-    producer_app.produce_from_postgresql("company_ownership_links", kafka_config.OWNERSHIP_GRAPH_TOPIC)
+    for index, row in df.iterrows():
+        try:
+            transaction_key = str(index) 
+            transaction_data = row.to_dict()
+            transaction_producer.produce_message(transaction_key, transaction_data)
+            time.sleep(0.01)
+        except Exception as e:
+            logger.error(f"Failed to push transaction {index} to Kafka: {e}")
+    transaction_producer.flush()
+    logger.info(f"Finished pushing transactions to Kafka topic '{topic}'.")
+
+
+def push_ownership_graph_to_kafka(df: pd.DataFrame, topic: str, bootstrap_servers: str):
+    """
+    Pushes ownership graph data from a Pandas DataFrame to a Kafka topic.
+    Each row represents an ownership link.
+    """
+    ownership_producer = KafkaProducer(topic, bootstrap_servers)
+    logger.info(f"Starting to push {len(df)} ownership links to Kafka topic '{topic}'...")
+
+    for index, row in df.iterrows():
+        try:
+            link_key = f"{row['company_number']}-{row['related_entity_name']}-{index}"
+            link_data = row.to_dict()
+            ownership_producer.produce_message(link_key, link_data)
+            time.sleep(0.005) # Small delay
+        except Exception as e:
+            logger.error(f"Failed to push ownership link {index} to Kafka: {e}")
+    ownership_producer.flush()
+    logger.info(f"Finished pushing ownership links to Kafka topic '{topic}'.")

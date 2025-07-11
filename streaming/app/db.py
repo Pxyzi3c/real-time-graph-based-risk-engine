@@ -38,7 +38,7 @@ def get_db_engine():
             raise
     return _engine
 
-def read_dataframe_from_db(table_name: str, columns: list = None) -> pd.DataFrame:
+def get_dataframe_from_db(table_name: str, columns: list = None) -> pd.DataFrame:
     """
     Reads data from a specified PostgreSQL table into a Pandas DataFrame.
 

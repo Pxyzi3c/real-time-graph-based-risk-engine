@@ -1,12 +1,52 @@
-import json
-from datetime import datetime
+import logging
+from confluent_kafka.admin import AdminClient, NewTopic
+from confluent_kafka import KafkaException
+from config.settings import settings
 
-def serialize_message(message):
-    def default_serializer(o):
-        if isinstance(o, datetime):
-            return o.isoformat()
-        raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
-    return json.dumps(message, default=default_serializer).encode('utf-8')
+logger = logging.getLogger(__name__)
 
-def deserialize_message(message_bytes):
-    return json.loads(message_bytes.decode('utf-8'))
+def create_kafka_topics(broker_address: str, topics: list):
+    """
+    Creates Kafka topics if they do not already exist.
+
+    Args:
+        broker_address (str): The Kafka broker address (e.g., 'kafka:9092').
+        topics (list): A list of topic names to create.
+    """
+    admin_client = AdminClient({'bootstrap.servers': broker_address})
+
+    new_topics = [NewTopic(topic, num_partitions=1, replication_factor=1) for topic in topics]
+
+    futures = admin_client.create_topics(new_topics, request_timeout=15.0)
+
+    for topic, future in futures.items():
+        try:
+            future.result()  # The result itself is None
+            logger.info(f"Topic '{topic}' created successfully or already exists.")
+        except KafkaException as e:
+            if e.args[0].code() == 36: # TopicAlreadyExists exception code
+                logger.warning(f"Topic '{topic}' already exists. Skipping creation.")
+            else:
+                logger.error(f"Failed to create topic '{topic}': {e}")
+            raise
+
+def get_kafka_producer_config():
+    return {
+        'bootstrap.servers': settings.KAFKA_BROKER_ADDRESS,
+        'client.id': 'python-producer',
+        'acks': 'all',
+        'retries': 3,
+        'linger.ms': 100,
+        'compression.type': 'snappy'
+    }
+
+def get_kafka_consumer_config(group_id: str):
+    return {
+        'bootstrap.servers': settings.KAFKA_BROKER_ADDRESS,
+        'group.id': group_id,
+        'auto.offset.reset': 'earliest',
+        'enable.auto.commit': True,
+        'auto.commit.interval.ms': 5000,
+        'max.poll.interval.ms': 300000,
+        'session.timeout.ms': 45000
+    }

@@ -28,14 +28,14 @@ docker exec -it kafka bash
 ```
 Create kafka topics
 ```bash
-kafka kafka-topics --create --topic transactions --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
-kafka kafka-topics --create --topic ownership_graph --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
-kafka kafka-topics --create --topic enriched_transactions --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
+kafka-topics --create --topic transactions --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
+kafka-topics --create --topic ownership_graph --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
+kafka-topics --create --topic enriched_transactions --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
 ```
 
 3. Verify Topic Creation
 ```bash
-kafka kafka-topics --list --bootstrap-server kafka:9092
+kafka-topics --list --bootstrap-server kafka:9092
 ```
 
 4. Execute Producers
