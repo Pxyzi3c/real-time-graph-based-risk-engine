@@ -32,6 +32,10 @@ kafka-topics --create --topic transactions --bootstrap-server kafka:9092 --repli
 kafka-topics --create --topic ownership_graph --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
 kafka-topics --create --topic enriched_transactions --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1
 ```
+_To delete a kafka topic_
+```bash
+kafka-topics --bootstrap-server kafka:9092 --delete --topic <topic_name>
+```
 
 3. Verify Topic Creation
 ```bash
