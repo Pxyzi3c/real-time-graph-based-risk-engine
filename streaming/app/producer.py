@@ -20,15 +20,11 @@ class KafkaProducer:
     def _initialize_producer(self):
         """Initializes the Kafka producer and creates topics if they don't exist."""
         try:
-            create_kafka_topics(self.bootstrap_servers, 
-                                [settings.KAFKA_TRANSACTIONS_TOPIC, 
-                                 settings.KAFKA_OWNERSHIP_GRAPH_TOPIC,
-                                 settings.KAFKA_ENRICHED_TRANSACTIONS_TOPIC])
+            create_kafka_topics(self.bootstrap_servers, [self.topic])
             self.producer = Producer(get_kafka_producer_config())
             logger.info(f"Kafka Producer initialized for topic: {self.topic}")
-        except Exception as e:
+        except KafkaException as e:
             logger.error(f"Failed to initialize Kafka Producer: {e}")
-            raise
 
     def delivery_report(self, err, msg):
         """Callback function for Kafka message delivery reports."""
@@ -69,6 +65,10 @@ def push_transactions_to_kafka(df: pd.DataFrame, topic: str, bootstrap_servers: 
     Pushes transaction data from a Pandas DataFrame to a Kafka topic.
     Each row in the DataFrame is considered a transaction.
     """
+    for col in df.select_dtypes(include=['datetime64[ns, UTC]', 'datetime64[ns]']).columns:
+        df[col] = df[col].dt.isoformat() if not df[col].isnull().all() else None # Convert to ISO string, handle NaT
+
+
     transaction_producer = KafkaProducer(topic, bootstrap_servers)
     logger.info(f"Starting to push {len(df)} transactions to Kafka topic '{topic}'...")
 
@@ -77,7 +77,6 @@ def push_transactions_to_kafka(df: pd.DataFrame, topic: str, bootstrap_servers: 
             transaction_key = str(index) 
             transaction_data = row.to_dict()
             transaction_producer.produce_message(transaction_key, transaction_data)
-            time.sleep(0.01)
         except Exception as e:
             logger.error(f"Failed to push transaction {index} to Kafka: {e}")
     transaction_producer.flush()
@@ -89,6 +88,9 @@ def push_ownership_graph_to_kafka(df: pd.DataFrame, topic: str, bootstrap_server
     Pushes ownership graph data from a Pandas DataFrame to a Kafka topic.
     Each row represents an ownership link.
     """
+    for col in df.select_dtypes(include=['datetime64[ns, UTC]', 'datetime64[ns]']).columns:
+        df[col] = df[col].dt.isoformat() if not df[col].isnull().all() else None
+    
     ownership_producer = KafkaProducer(topic, bootstrap_servers)
     logger.info(f"Starting to push {len(df)} ownership links to Kafka topic '{topic}'...")
 

@@ -1,6 +1,6 @@
 import logging
 from confluent_kafka.admin import AdminClient, NewTopic
-from confluent_kafka import KafkaException
+from confluent_kafka import KafkaException, KafkaError
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -21,14 +21,14 @@ def create_kafka_topics(broker_address: str, topics: list):
 
     for topic, future in futures.items():
         try:
-            future.result()  # The result itself is None
+            future.result()
             logger.info(f"Topic '{topic}' created successfully or already exists.")
         except KafkaException as e:
-            if e.args[0].code() == 36: # TopicAlreadyExists exception code
+            if e.code() == KafkaError.TOPIC_ALREADY_EXISTS:
                 logger.warning(f"Topic '{topic}' already exists. Skipping creation.")
             else:
                 logger.error(f"Failed to create topic '{topic}': {e}")
-            raise
+                raise 
 
 def get_kafka_producer_config():
     return {
