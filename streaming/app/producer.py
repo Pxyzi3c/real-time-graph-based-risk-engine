@@ -2,6 +2,7 @@ import logging
 import json
 import time
 import pandas as pd
+import numpy as np
 from confluent_kafka import Producer, KafkaException
 from config.settings import settings
 from app.utils import create_kafka_topics, get_kafka_producer_config
@@ -66,8 +67,7 @@ def push_transactions_to_kafka(df: pd.DataFrame, topic: str, bootstrap_servers: 
     Each row in the DataFrame is considered a transaction.
     """
     for col in df.select_dtypes(include=['datetime64[ns, UTC]', 'datetime64[ns]']).columns:
-        df[col] = df[col].dt.isoformat() if not df[col].isnull().all() else None # Convert to ISO string, handle NaT
-
+        df[col] = df[col].dt.strftime('%Y-%m-%dT%H:%M:%S.%fZ').replace({np.nan: None})
 
     transaction_producer = KafkaProducer(topic, bootstrap_servers)
     logger.info(f"Starting to push {len(df)} transactions to Kafka topic '{topic}'...")
@@ -89,8 +89,8 @@ def push_ownership_graph_to_kafka(df: pd.DataFrame, topic: str, bootstrap_server
     Each row represents an ownership link.
     """
     for col in df.select_dtypes(include=['datetime64[ns, UTC]', 'datetime64[ns]']).columns:
-        df[col] = df[col].dt.isoformat() if not df[col].isnull().all() else None
-    
+        df[col] = df[col].dt.strftime('%Y-%m-%dT%H:%M:%S.%fZ').replace({np.nan: None})
+        
     ownership_producer = KafkaProducer(topic, bootstrap_servers)
     logger.info(f"Starting to push {len(df)} ownership links to Kafka topic '{topic}'...")
 

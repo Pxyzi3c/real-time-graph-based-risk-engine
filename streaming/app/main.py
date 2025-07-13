@@ -18,16 +18,16 @@ def run_producer_mode():
     logger.info("Starting streaming producer mode...")
 
     # Load Kaggle data from PostgreSQL
-    # try:
-    #     transactions_df = get_dataframe_from_db('credit_card_fraud')
-    #     logger.info(f"Loaded {len(transactions_df)} transactions from PostgreSQL.")
-    #     push_transactions_to_kafka(
-    #         transactions_df, 
-    #         settings.KAFKA_TRANSACTIONS_TOPIC, 
-    #         settings.KAFKA_BROKER_ADDRESS
-    #     )
-    # except Exception as e:
-    #     logger.error(f"Failed to load/push transactions: {e}")
+    try:
+        transactions_df = get_dataframe_from_db('credit_card_fraud')
+        logger.info(f"Loaded {len(transactions_df)} transactions from PostgreSQL.")
+        push_transactions_to_kafka(
+            transactions_df, 
+            settings.KAFKA_TRANSACTIONS_TOPIC, 
+            settings.KAFKA_BROKER_ADDRESS
+        )
+    except Exception as e:
+        logger.error(f"Failed to load/push transactions: {e}")
         # Decide on error handling: exit, retry, etc. For now, we'll log and continue if possible.
 
     # Load synthetic ownership data from PostgreSQL

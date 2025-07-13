@@ -53,25 +53,23 @@ services:
         networks:
             - backend
 
-    init-kafka:
-        image: confluentinc/cp-kafka:7.6.0
-        container_name: init_kafka
-        depends_on:
-            - kafka
-        command: |
-            bash -c "
-            echo 'Waiting for Kafka to be ready...'
-            cub kafka-ready -b kafka:9092 1 20
-            echo 'Creating Kafka topics...'
-            kafka-topics --create --if-not-exists --topic transactions --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
-            kafka-topics --create --if-not-exists --topic ownership_graph --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
-            kafka-topics --create --if-not-exists --topic enriched_transactions --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
-            echo 'Kafka topics created successfully!'
-            "
-        networks:
-            - backend
-        # Ensure this service finishes before streaming starts if streaming relies on topics existing
-        # No restart policy for init services
+    # init-kafka:
+    #     image: confluentinc/cp-kafka:7.6.0
+    #     container_name: init_kafka
+    #     depends_on:
+    #         - kafka
+    #     command: |
+    #         bash -c "
+    #         echo 'Waiting for Kafka to be ready...'
+    #         cub kafka-ready -b kafka:9092 1 20
+    #         echo 'Creating Kafka topics...'
+    #         kafka-topics --create --if-not-exists --topic transactions --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
+    #         kafka-topics --create --if-not-exists --topic ownership_graph --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
+    #         kafka-topics --create --if-not-exists --topic enriched_transactions --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
+    #         echo 'Kafka topics created successfully!'
+    #         "
+    #     networks:
+    #         - backend
 
     streaming:
         build: ./streaming
@@ -82,7 +80,6 @@ services:
             - ./streaming/.env
         depends_on:
             - kafka
-            - init-kafka
             - db
         networks:
             - backend

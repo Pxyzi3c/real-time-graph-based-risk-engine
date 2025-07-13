@@ -104,7 +104,7 @@ if __name__ == "__main__":
 
     if args.source == "kaggle":
         ingest.kaggle()
-    elif args.source == "synthetic":
+    elif args.source == "synthetic_companies":
         ingest.synthetic_companies(args.num_records)
     else:
         raise ValueError(f"Invalid source specified: {args.source}")
