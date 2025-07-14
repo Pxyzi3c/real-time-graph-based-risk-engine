@@ -53,27 +53,39 @@ services:
         networks:
             - backend
 
-    # init-kafka:
-    #     image: confluentinc/cp-kafka:7.6.0
-    #     container_name: init_kafka
+    init-kafka:
+        image: confluentinc/cp-kafka:7.6.0
+        container_name: init_kafka
+        depends_on:
+            - kafka
+        command: >
+            bash -c "
+            echo 'Waiting for Kafka to be ready...' &&
+            cub kafka-ready -b kafka:9092 1 20 &&
+            echo 'Creating Kafka topics...' &&
+            kafka-topics --create --topic transactions --partitions 1 --replication-factor 1 --bootstrap-server kafka:9092 &&
+            kafka-topics --create --topic ownership_graph --partitions 1 --replication-factor 1 --bootstrap-server kafka:9092 &&
+            kafka-topics --create --topic enriched_transactions --partitions 1 --replication-factor 1 --bootstrap-server kafka:9092 &&
+            echo 'Kafka topics created successfully.'
+            "
+        networks:
+            - backend
+
+    # streaming:
+    #     build: ./streaming
+    #     container_name: streaming
+    #     volumes:
+    #         - ./data:/app/data
+    #     env_file:
+    #         - ./streaming/.env
     #     depends_on:
     #         - kafka
-    #     command: |
-    #         bash -c "
-    #         echo 'Waiting for Kafka to be ready...'
-    #         cub kafka-ready -b kafka:9092 1 20
-    #         echo 'Creating Kafka topics...'
-    #         kafka-topics --create --if-not-exists --topic transactions --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
-    #         kafka-topics --create --if-not-exists --topic ownership_graph --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
-    #         kafka-topics --create --if-not-exists --topic enriched_transactions --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1
-    #         echo 'Kafka topics created successfully!'
-    #         "
+    #         - db
     #     networks:
     #         - backend
-
-    streaming:
+    streaming_producer:
         build: ./streaming
-        container_name: streaming
+        container_name: streaming_producer
         volumes:
             - ./data:/app/data
         env_file:
@@ -81,8 +93,27 @@ services:
         depends_on:
             - kafka
             - db
+            - init-kafka
         networks:
             - backend
+        command: ["python", "-m", "app.main", "--mode", "producer"]
+        restart: unless-stopped
+
+    streaming_consumer:
+        build: ./streaming
+        container_name: streaming_consumer
+        volumes:
+            - ./data:/app/data
+        env_file:
+            - ./streaming/.env
+        depends_on:
+            - kafka
+            - db
+            - init-kafka
+        networks:
+            - backend
+        command: ["python", "-m", "app.main", "--mode", "consumer"]
+        restart: unless-stopped
 
 volumes:
     pg_data:

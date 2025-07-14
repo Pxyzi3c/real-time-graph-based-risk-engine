@@ -60,7 +60,7 @@ def run_consumer_mode():
     logger.info("Fake KYC data generated and saved.")
 
     consumer = KafkaConsumer(
-        consumer_group_id="transaction_enricher_group",
+        consumer_group_id=settings.KAFKA_CONSUMER_GROUP_ID,
         input_topic=settings.KAFKA_TRANSACTIONS_TOPIC,
         output_topic=settings.KAFKA_ENRICHED_TRANSACTIONS_TOPIC,
         bootstrap_servers=settings.KAFKA_BROKER_ADDRESS
