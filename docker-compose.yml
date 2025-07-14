@@ -58,14 +58,14 @@ services:
         container_name: init_kafka
         depends_on:
             - kafka
-        command: >
+        command: |
             bash -c "
-            echo 'Waiting for Kafka to be ready...' &&
-            cub kafka-ready -b kafka:9092 1 20 &&
-            echo 'Creating Kafka topics...' &&
-            kafka-topics --create --topic transactions --partitions 1 --replication-factor 1 --bootstrap-server kafka:9092 &&
-            kafka-topics --create --topic ownership_graph --partitions 1 --replication-factor 1 --bootstrap-server kafka:9092 &&
-            kafka-topics --create --topic enriched_transactions --partitions 1 --replication-factor 1 --bootstrap-server kafka:9092 &&
+            echo 'Waiting for Kafka to be ready...' && \
+            cub kafka-ready -b kafka:9092 1 60 && \
+            echo 'Creating Kafka topics...' && \
+            kafka-topics --create --topic transactions --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 && \
+            kafka-topics --create --topic ownership_graph --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 && \
+            kafka-topics --create --topic enriched_transactions --bootstrap-server kafka:9092 --replication-factor 1 --partitions 1 && \
             echo 'Kafka topics created successfully.'
             "
         networks:
