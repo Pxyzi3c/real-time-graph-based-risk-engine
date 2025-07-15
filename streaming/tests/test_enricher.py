@@ -6,45 +6,17 @@ import pytest
 import pandas as pd
 from unittest.mock import patch, MagicMock
 from app.enricher import TransactionEnricher
-from app.kyc_loader import generate_fake_kyc_data
 
-@pytest.fixture
-def mock_db_data():
-    """Fixture to mock database calls for KYC and Ownership data."""
-    # Generate some fake KYC data for testing
-    mock_kyc_df = generate_fake_kyc_data(5)
-    mock_kyc_df['customer_id'] = [f"CUST{i:05d}" for i in range(5)]
-    mock_kyc_df.set_index('customer_id', inplace=True)
-
-    # Generate some fake ownership data for testing
-    mock_ownership_df = pd.DataFrame({
-        'company_number': ['CO1', 'CO2', 'CO3'],
-        'company_name': ['Alpha Corp', 'Beta Inc', 'Gamma Ltd'],
-        'related_entity_name': ['John Doe', 'Jane Smith', 'Alpha Corp'],
-        'relationship_type': ['beneficial_owner', 'director', 'ownership']
-    })
-    
-    with patch('app.db.get_dataframe_from_db') as mock_get_db:
-        # Define side effects for get_dataframe_from_db based on table name
-        def side_effect(table_name):
-            if table_name == 'customer_kyc':
-                return mock_kyc_df
-            elif table_name == 'company_ownership_links':
-                return mock_ownership_df
-            return pd.DataFrame() # Return empty for other tables
-        
-        mock_get_db.side_effect = side_effect
-        yield mock_get_db
-
-def test_enricher_initialization(mock_db_data):
+def test_enricher_initialization():
     """Test if the enricher loads data correctly upon initialization."""
     enricher = TransactionEnricher()
+    print("KYC Data:", enricher)
     assert not enricher.kyc_data.empty, "KYC data should not be empty after initialization."
     assert not enricher.ownership_graph.empty, "Ownership graph data should not be empty after initialization."
     assert len(enricher.kyc_data) == 5, "KYC data should contain 5 records."
     assert len(enricher.ownership_graph) == 3, "Ownership graph should contain 3 records."
 
-def test_enrich_transaction_with_kyc_and_ownership(mock_db_data):
+def test_enrich_transaction_with_kyc_and_ownership():
     """Test the enrichment of a single transaction."""
     enricher = TransactionEnricher()
     

@@ -71,18 +71,6 @@ services:
         networks:
             - backend
 
-    # streaming:
-    #     build: ./streaming
-    #     container_name: streaming
-    #     volumes:
-    #         - ./data:/app/data
-    #     env_file:
-    #         - ./streaming/.env
-    #     depends_on:
-    #         - kafka
-    #         - db
-    #     networks:
-    #         - backend
     streaming_producer:
         build: ./streaming
         container_name: streaming_producer

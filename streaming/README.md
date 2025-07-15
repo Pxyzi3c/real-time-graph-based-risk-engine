@@ -21,7 +21,7 @@ docker compose up -d
 
 2. Connect to Kafka Container and Create Topics
 > [!NOTE]
-> Already accomplished when you run the docker compose through init_kafka
+> Already accomplished when you run the docker
 Access kafka command line
 ```bash
 docker exec -it kafka bash
@@ -55,4 +55,12 @@ kafka-console-consumer --bootstrap-server localhost:9092 --topic transactions --
 
 # To consume from ownership_graph topic (run in another new terminal)
 kafka-console-consumer --bootstrap-server localhost:9092 --topic ownership_graph --from-beginning
+```
+**or from docker**
+```bash
+docker compose logs -f streaming_producer
+```
+```bash
+# From other terminal
+docker compose logs -f streaming_consumer
 ```
