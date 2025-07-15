@@ -3,9 +3,11 @@ import json
 import time
 import pandas as pd
 import numpy as np
+import random
+
 from confluent_kafka import Producer, KafkaException
-from config.settings import settings
-from app.utils import create_kafka_topics, get_kafka_producer_config
+from app.utils import get_kafka_producer_config
+from app.db import get_dataframe_from_db
 from config.logging_config import setup_logging
 
 setup_logging()
@@ -95,17 +97,28 @@ def push_transactions_to_kafka(df: pd.DataFrame, topic: str, bootstrap_servers: 
 
     try: 
         transaction_producer = KafkaProducer(topic, bootstrap_servers)
+        logger.info(f"Starting to push {len(df)} transactions to Kafka topic '{topic}'...")
     except Exception as e:
         logger.error(f"Failed to initialize Kafka Producer for topic '{topic}': {e}")
         return
-    
-    logger.info(f"Starting to push {len(df)} transactions to Kafka topic '{topic}'...")
+
+    try:
+        ownership_df = get_dataframe_from_db('company_ownership_graph')
+        existing_company_numbers = ownership_df['company_number'].unique().tolist()
+        if not existing_company_numbers:
+            logger.warning("No company numbers found in ")
+    except Exception as e:
+        logger.error(f"Could not load company numbers for transaction enrichment: {e}")
+        existing_company_numbers = []
 
     for index, row in df.iterrows():
         try:
-            transaction_key = str(row.get('transaction_id', index)) 
             transaction_data = row.to_dict()
+            transaction_data['company_number'] = random.choice(existing_company_numbers) if existing_company_numbers else None
+            
+            transaction_key = str(transaction_data.get('transaction_id', index)) 
             transaction_producer.produce_message(transaction_key, transaction_data)
+            time.sleep(0.01)
         except Exception as e:
             logger.error(f"Failed to push transaction {index} to Kafka: {e}")
     transaction_producer.flush()
@@ -128,7 +141,6 @@ def push_ownership_graph_to_kafka(df: pd.DataFrame, topic: str, bootstrap_server
             link_key = f"{row['company_number']}-{row['related_entity_name']}-{index}"
             link_data = row.to_dict()
             ownership_producer.produce_message(link_key, link_data)
-            time.sleep(0.005) # Small delay
         except Exception as e:
             logger.error(f"Failed to push ownership link {index} to Kafka: {e}")
     ownership_producer.flush()
