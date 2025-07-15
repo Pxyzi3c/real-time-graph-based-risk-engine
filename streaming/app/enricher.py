@@ -58,16 +58,24 @@ class TransactionEnricher:
         # NOTE: This is a placeholder for a proper customer_id mapping.
         # In a real system, 'customer_id' would be part of the incoming transaction stream.
         # For now, we'll assign a random existing customer_id from our fake KYC data.
-        if not self.kyc_data.empty:
+
+
+
+        if 'customer_id' not in enriched_transaction and not self.kyc_data.empty:
             random_customer_id = self.kyc_data.sample(1).index[0]
             enriched_transaction['customer_id'] = random_customer_id
+            logger.debug(f"Assigned random customer_id: {random_customer_id}")
             
-            # Enrich with KYC data
-            kyc_info = self.kyc_data.loc[random_customer_id].to_dict()
+        customer_id_for_kyc = enriched_transaction.get('customer_id')
+        if customer_id_for_kyc and customer_id_for_kyc in self.kyc_data.index:
+            kyc_info = self.kyc_data.loc[customer_id_for_kyc].to_dict()
             enriched_transaction['kyc_info'] = kyc_info
         else:
             enriched_transaction['kyc_info'] = {}
-            logger.warning("No KYC data available for enrichment.")
+            if customer_id_for_kyc:
+                logger.warning(f"KYC data not found for customer_id: {customer_id_for_kyc}")
+            else:
+                logger.warning("No customer_id in transaction for KYC enrichment.")
 
         # Enrich with ownership graph data
         # This part requires linking the transaction to a company, which then links to the ownership graph.
@@ -86,7 +94,18 @@ class TransactionEnricher:
         
         # For now, let's just add a placeholder for ownership links.
         # In a real system, this would involve sophisticated graph traversal.
-        enriched_transaction['ownership_links'] = []
+        # Ownership Graph Enrichment
+        company_number = enriched_transaction.get('company_number')
+        if company_number and not self.ownership_graph.empty:
+            related_links = self.ownership_graph[self.ownership_graph['company_number'] == company_number]
+            enriched_transaction['ownership_links'] = related_links.to_dict(orient='records')
+            logger.debug(f"Found {len(related_links)} ownership links for company: {company_number}")
+        else:
+            enriched_transaction['ownership_links'] = []
+            if company_number:
+                logger.warning(f"No ownership links found for company_number: {company_number}")
+            else:
+                logger.warning("No company_number in transaction for ownership graph enrichment.")
         
-        logger.debug(f"Enriched transaction: {enriched_transaction.get('Time')}")
+        logger.debug(f"Enriched transaction: {enriched_transaction.get('transaction_id', enriched_transaction.get('Time'))}")
         return enriched_transaction
