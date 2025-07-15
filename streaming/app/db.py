@@ -73,12 +73,46 @@ def save_dataframe_to_db(df: pd.DataFrame, table_name: str, if_exists: str = 'ap
         index (bool): Write DataFrame index as a column. Default False.
         chunksize (int): Number of rows to write at a time. Default 1000.
     """
+    if df.empty:
+        logger.warning("DataFrame is empty. No data to save to the table '{table_name}'.")
+        return
+
     engine = get_db_engine()
-    try:
-        df.to_sql(table_name, engine, if_exists=if_exists, index=index, chunksize=chunksize)
-        logger.info(f"Successfully saved {len(df)} rows to table '{table_name}' with if_exists='{if_exists}'.")
-    except Exception as e:
-        logger.error(f"Error saving to table '{table_name}': {e}")
-        raise
-    finally:
-        engine.dispose()
+
+    if 'transaction_id' in df.columns:
+        try:
+            conn = engine.connect()
+            data = df.to_dict(orient='records')
+
+            cols = ', '.join(df.columns)
+            val_placeholders = ', '.join([f":{col}" for col in df.columns])
+
+            insert_query = text(f"""
+                INSERT INTO {table_name} ({cols})
+                VALUES ({val_placeholders})
+                ON CONFLICT (transaction_id) DO NOTHING
+            """)
+
+            for i in range(0, len(data), chunksize):
+                chunk = data[i:i + chunksize]
+                conn.execute(insert_query, chunk)
+                logger.debug(f"Inserted/skipped {len(chunk)} rows into {table_name}.")
+
+            conn.commit()
+            logger.info(f"DataFrame successfully saved to PostgreSQL table '{table_name}' with ON CONFLICT DO NOTHING.")
+        except Exception as e:
+            logger.error(f"Failed to save DataFrame to PostgreSQL table '{table_name}' with idempotency: {e}")
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+            engine.dispose()
+    else:
+        try:
+            df.to_sql(table_name, engine, is_exists=if_exists, index=index, chunksize=chunksize)
+            logger.info(f"DataFrame successfully saved to PostgreSQL table '{table_name}' with {if_exists} mode.")
+        except Exception as e:
+            logger.error(f"Error saving to table '{table_name}': {e}")
+            raise
+        finally:
+            engine.dispose()
