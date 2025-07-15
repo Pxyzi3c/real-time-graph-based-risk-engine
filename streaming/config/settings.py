@@ -27,10 +27,6 @@ class Settings(BaseSettings):
     DB_POOL_TIMEOUT: int = 30
     DB_POOL_RECYCLE: int = 3600
 
-    # Paths
-    KAGGLE_INPUT_PATH: str = os.getenv("KAGGLE_INPUT_PATH", "/app/data/creditcard.csv")
-    KAGGLE_OUTPUT_PATH: str = os.getenv("KAGGLE_OUTPUT_PATH", "/app/data/processed_creditcard.csv")
-
     # KYC Loader Settings
     KYC_NUM_RECORDS: int = int(os.getenv("KYC_NUM_RECORDS", "1000"))
     
