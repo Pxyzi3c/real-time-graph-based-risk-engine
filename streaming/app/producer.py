@@ -103,7 +103,7 @@ def push_transactions_to_kafka(df: pd.DataFrame, topic: str, bootstrap_servers: 
 
     for index, row in df.iterrows():
         try:
-            transaction_key = str(index) 
+            transaction_key = str(row.get('transaction_id', index)) 
             transaction_data = row.to_dict()
             transaction_producer.produce_message(transaction_key, transaction_data)
         except Exception as e:

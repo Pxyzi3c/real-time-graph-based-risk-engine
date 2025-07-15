@@ -79,6 +79,7 @@ services:
         env_file:
             - ./streaming/.env
         depends_on:
+            - ingestion
             - kafka
             - db
             - init-kafka
@@ -95,6 +96,7 @@ services:
         env_file:
             - ./streaming/.env
         depends_on:
+            - ingestion
             - kafka
             - db
             - init-kafka

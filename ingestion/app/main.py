@@ -89,14 +89,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--source", 
-        choices=["kaggle", "synthetic_companies"],
+        choices=["kaggle", "synthetic_companies", "both"],
         required=True,
         help="Specify the data source for ingestion."
     )
     parser.add_argument(
         "--num_records",
         type=int,
-        default=1000,
+        default=5000,
         help="Number of synthetic records to generate (only applicable for --source synthetic). Default is 1000."
     )
 
@@ -105,6 +105,9 @@ if __name__ == "__main__":
     if args.source == "kaggle":
         ingest.kaggle()
     elif args.source == "synthetic_companies":
+        ingest.synthetic_companies(args.num_records)
+    elif args.source == "both":
+        ingest.kaggle()
         ingest.synthetic_companies(args.num_records)
     else:
         raise ValueError(f"Invalid source specified: {args.source}")

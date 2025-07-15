@@ -35,9 +35,19 @@ def get_engine():
             raise
     return _engine
 
-def save_dataframe_to_db(df: pd.DataFrame, table_name: str, if_exists: str = 'replace', chunksize: int = 10000):
+def save_dataframe_to_db(
+    df: pd.DataFrame, 
+    table_name: str, 
+    if_exists: str = 'replace', 
+    chunksize: int = 10000
+):
+    if df.empty:
+        logger.warning("DataFrame is empty. No data to save.")
+        return
+
+    engine = get_engine()
+    
     try:
-        engine = get_engine()
         logger.info(f"Attempting to save DataFrame to table '{table_name}' with if_exists='{if_exists}' and chunksize={chunksize}...")
         
         df.to_sql(

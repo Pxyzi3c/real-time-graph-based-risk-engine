@@ -6,4 +6,4 @@ COPY . .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-CMD ["python", "main.py", "--source", "kaggle"]
+CMD ["python", "-m", "app.main", "--source", "both"]
