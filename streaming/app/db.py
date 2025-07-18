@@ -109,7 +109,7 @@ def save_dataframe_to_db(df: pd.DataFrame, table_name: str, if_exists: str = 'ap
             engine.dispose()
     else:
         try:
-            df.to_sql(table_name, engine, is_exists=if_exists, index=index, chunksize=chunksize)
+            df.to_sql(table_name, engine, if_exists=if_exists, index=index, chunksize=chunksize)
             logger.info(f"DataFrame successfully saved to PostgreSQL table '{table_name}' with {if_exists} mode.")
         except Exception as e:
             logger.error(f"Error saving to table '{table_name}': {e}")
