@@ -140,6 +140,8 @@ class KafkaConsumer:
             # Need to align this with your actual enriched schema
             # For now, let's save all flattened columns.
             
+            "TODO: There's no enriched_transactions table in the database, so we need to create it first."
+
             save_dataframe_to_db(df, 'enriched_transactions', if_exists='append')
             logger.info(f"Successfully saved {len(batch)} enriched transactions to PostgreSQL.")
         except Exception as e:
