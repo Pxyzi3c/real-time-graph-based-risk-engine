@@ -103,7 +103,7 @@ def push_transactions_to_kafka(df: pd.DataFrame, topic: str, bootstrap_servers: 
         return
 
     try:
-        ownership_df = get_dataframe_from_db('company_ownership_graph')
+        ownership_df = get_dataframe_from_db('company_ownership_links')
         existing_company_numbers = ownership_df['company_number'].unique().tolist()
         if not existing_company_numbers:
             logger.warning("No company numbers found in ")

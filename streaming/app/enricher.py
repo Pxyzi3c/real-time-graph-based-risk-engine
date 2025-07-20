@@ -58,9 +58,6 @@ class TransactionEnricher:
         # NOTE: This is a placeholder for a proper customer_id mapping.
         # In a real system, 'customer_id' would be part of the incoming transaction stream.
         # For now, we'll assign a random existing customer_id from our fake KYC data.
-
-
-
         if 'customer_id' not in enriched_transaction and not self.kyc_data.empty:
             random_customer_id = self.kyc_data.sample(1).index[0]
             enriched_transaction['customer_id'] = random_customer_id

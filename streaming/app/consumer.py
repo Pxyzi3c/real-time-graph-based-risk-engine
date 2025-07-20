@@ -1,8 +1,10 @@
 import logging
 import json
 import time
-from confluent_kafka import Consumer, KafkaException, Producer
+import hashlib
 import pandas as pd
+
+from confluent_kafka import Consumer, KafkaException, Producer
 from app.enricher import TransactionEnricher
 from app.db import save_dataframe_to_db
 from app.utils import get_kafka_consumer_config, get_kafka_producer_config
@@ -23,6 +25,10 @@ class KafkaConsumer:
         self.consumer.subscribe([self.input_topic, settings.KAFKA_OWNERSHIP_GRAPH_TOPIC])
         logger.info(f"Kafka Consumer initialized for input topic: {self.input_topic}, output topic: {self.output_topic}")
         self.running = True
+        self.batch = []
+        self.batch_size = 100
+        self.flush_interval = 5
+        self.last_flush_time = time.time()
 
     def _delivery_report(self, err, msg):
         """Callback function for Kafka message delivery reports for the producer."""
@@ -58,20 +64,15 @@ class KafkaConsumer:
     def start_consuming(self):
         """Starts consuming messages from Kafka topics."""
         logger.info(f"Starting to consume messages from topics: {self.input_topic}, {settings.KAFKA_OWNERSHIP_GRAPH_TOPIC}")
-        batch = []
-        batch_size = 100
-        flush_interval = 5
-
-        last_flush_time = time.time()
 
         while self.running:
             msg = self.consumer.poll(timeout=1.0)
 
             if msg is None:
-                if batch and (time.time() - last_flush_time >= flush_interval):
-                    self._process_and_save_batch(batch)
-                    batch = []
-                    last_flush_time = time.time()
+                if self.batch and (time.time() - self.last_flush_time >= self.flush_interval):
+                    self._process_and_save_batch(self.batch)
+                    self.batch = []
+                    self.last_flush_time = time.time()
                 continue
             if msg.error():
                 if msg.error().code() == -191:
@@ -83,7 +84,7 @@ class KafkaConsumer:
             if msg.topic() == self.input_topic:
                 enriched_data = self._process_message(msg.value())
                 if enriched_data:
-                    batch.append(enriched_data)
+                    self.batch.append(enriched_data)
                     self.producer.produce(
                         topic=self.output_topic,
                         key=msg.key(),
@@ -93,16 +94,16 @@ class KafkaConsumer:
             elif msg.topic() == settings.KAFKA_OWNERSHIP_GRAPH_TOPIC:
                 self._handle_ownership_graph_message(msg.value())
             
-            if len(batch) >= batch_size or (time.time() - last_flush_time >= flush_interval and batch):
-                self._process_and_save_batch(batch)
-                batch = []
-                last_flush_time = time.time()
+            if len(self.batch) >= self.batch_size or (time.time() - self.last_flush_time >= self.flush_interval and self.batch):
+                self._process_and_save_batch(self.batch)
+                self.batch = []
+                self.last_flush_time = time.time()
 
             self.producer.poll(0) # Poll producer for delivery reports
 
         # Flush any remaining messages in the batch before shutting down
-        if batch:
-            self._process_and_save_batch(batch)
+        if self.batch:
+            self._process_and_save_batch(self.batch)
         self.producer.flush()
         self.consumer.close()
         logger.info("Kafka Consumer stopped.")
@@ -122,7 +123,7 @@ class KafkaConsumer:
 
                 # Prefix KYC keys to avoid collision and flatten
                 for k, v in kyc_info.items():
-                    flat_item[f'kyc_{k}'] = v
+                    flat_item[f'kyc_{k}'] = str(v) if not isinstance(v, (str, int, float, bool)) else v
                 
                 flat_item['ownership_links_json'] = json.dumps(ownership_links)
                 
@@ -130,17 +131,32 @@ class KafkaConsumer:
 
             df = pd.DataFrame(processed_batch)
             
-            # Ensure column names are valid for PostgreSQL
-            df.columns = df.columns.str.replace('[^0-9a-zA-Z_]+', '_', regex=True).str.lower()
-            
             # Select relevant columns for the enriched transactions table
             # You'll need to define what columns you expect in the final enriched table
             # Based on Kaggle data, we have Time, V1-V28, Amount, Class
             # Plus our added customer_id, kyc_*, ownership_links_json
             # Need to align this with your actual enriched schema
             # For now, let's save all flattened columns.
+            column_mapping = {
+                'Time': 'time',
+                'Amount': 'amount',
+                'Class': 'class',
+                'transaction_id': 'transaction_id',
+                'customer_id': 'customer_id',
+                'company_number': 'company_number', # Added for consistency, even if sometimes null
+                'ownership_links_json': 'ownership_links_json'
+            }
+
+            for i in range(1, 29):
+                column_mapping[f'V{i}'] = f'v{i}'
             
-            "TODO: There's no enriched_transactions table in the database, so we need to create it first."
+            if processed_batch:
+                sample_item = processed_batch[0]
+                for key in sample_item.keys():
+                    if key.startswith('kyc_'):
+                        column_mapping[key] = key
+
+            df.rename(columns=column_mapping, inplace=True)
 
             save_dataframe_to_db(df, 'enriched_transactions', if_exists='append')
             logger.info(f"Successfully saved {len(batch)} enriched transactions to PostgreSQL.")

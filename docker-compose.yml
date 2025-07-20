@@ -70,6 +70,7 @@ services:
             timeout: 10s
             retries: 10
             start_period: 30s
+
     init-kafka:
         image: confluentinc/cp-kafka:7.6.0
         container_name: init_kafka
