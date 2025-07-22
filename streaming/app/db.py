@@ -59,7 +59,7 @@ def get_dataframe_from_db(table_name: str, columns: list = None) -> pd.DataFrame
         logger.error(f"Error reading from table '{table_name}': {e}")
         raise
     finally:
-        engine.dispose()
+        pass
 
 def save_dataframe_to_db(df: pd.DataFrame, table_name: str, if_exists: str = 'append', index: bool = False, chunksize: int = 1000):
     """
@@ -79,19 +79,27 @@ def save_dataframe_to_db(df: pd.DataFrame, table_name: str, if_exists: str = 'ap
 
     engine = get_db_engine()
 
-    if 'transaction_id' in df.columns:
+    # if 'transaction_id' in df.columns:
+    if table_name == 'enriched_transactions' and 'transaction_id' in df.columns:
         try:
             conn = engine.connect()
             data = df.to_dict(orient='records')
 
-            cols = ', '.join(df.columns)
-            val_placeholders = ', '.join([f":{col}" for col in df.columns])
+            df_columns_for_sql = [col.lower() for col in df.columns]
+
+            cols = ', '.join([f'"{col}"' if col.lower() != col else col for col in df_columns_for_sql])
+            val_placeholders = ', '.join([f":{col}" for col in df_columns_for_sql])
 
             insert_query = text(f"""
                 INSERT INTO {table_name} ({cols})
                 VALUES ({val_placeholders})
                 ON CONFLICT (transaction_id) DO NOTHING
             """)
+
+            prepared_data = []
+            for record in data:
+                prepared_record = {k.lower(): v for k, v in record.items()} # Convert keys to lowercase for matching placeholders
+                prepared_data.append(prepared_record)
 
             for i in range(0, len(data), chunksize):
                 chunk = data[i:i + chunksize]
@@ -106,7 +114,8 @@ def save_dataframe_to_db(df: pd.DataFrame, table_name: str, if_exists: str = 'ap
             raise
         finally:
             conn.close()
-            engine.dispose()
+            # engine.dispose()
+
     else:
         try:
             df.to_sql(table_name, engine, if_exists=if_exists, index=index, chunksize=chunksize)
@@ -115,4 +124,4 @@ def save_dataframe_to_db(df: pd.DataFrame, table_name: str, if_exists: str = 'ap
             logger.error(f"Error saving to table '{table_name}': {e}")
             raise
         finally:
-            engine.dispose()
+            pass

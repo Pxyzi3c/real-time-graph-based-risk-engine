@@ -38,7 +38,6 @@ class KafkaProducer:
             logger.error(f"Message delivery failed: {err}")
         else:
             logger.info(f"Message delivered to topic '{msg.topic()}' [{msg.partition()}] at offset {msg.offset()}")
-            pass
 
     def produce_message(self, key: str, value: dict):
         """Produces a single message to the Kafka topic."""
@@ -102,11 +101,13 @@ def push_transactions_to_kafka(df: pd.DataFrame, topic: str, bootstrap_servers: 
         logger.error(f"Failed to initialize Kafka Producer for topic '{topic}': {e}")
         return
 
+    existing_company_numbers = []
     try:
         ownership_df = get_dataframe_from_db('company_ownership_links')
-        existing_company_numbers = ownership_df['company_number'].unique().tolist()
-        if not existing_company_numbers:
-            logger.warning("No company numbers found in ")
+        if not ownership_df.empty and 'company_number' in ownership_df.columns:
+            existing_company_numbers = ownership_df['company_number'].unique().tolist()
+        else:
+            logger.warning("No company numbers found in 'company_ownership_links' table. Cannot assign company_number to transactions.")
     except Exception as e:
         logger.error(f"Could not load company numbers for transaction enrichment: {e}")
         existing_company_numbers = []
@@ -133,9 +134,13 @@ def push_ownership_graph_to_kafka(df: pd.DataFrame, topic: str, bootstrap_server
     for col in df.select_dtypes(include=['datetime64[ns, UTC]', 'datetime64[ns]']).columns:
         df[col] = df[col].dt.strftime('%Y-%m-%dT%H:%M:%S.%fZ').replace({np.nan: None})
         
-    ownership_producer = KafkaProducer(topic, bootstrap_servers)
-    logger.info(f"Starting to push {len(df)} ownership links to Kafka topic '{topic}'...")
-
+    try:
+        ownership_producer = KafkaProducer(topic, bootstrap_servers)
+        logger.info(f"Starting to push {len(df)} ownership links to Kafka topic '{topic}'...")
+    except Exception as e:
+        logger.error(f"Failed to initialize Kafka Producer for topic '{topic}': {e}")
+        return
+    
     for index, row in df.iterrows():
         try:
             link_key = f"{row['company_number']}-{row['related_entity_name']}-{index}"
