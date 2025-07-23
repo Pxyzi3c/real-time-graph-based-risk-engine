@@ -89,6 +89,21 @@ services:
         networks:
             - backend
 
+    init-db:
+        image: postgres:13
+        container_name: init_db
+        depends_on:
+            db:
+                condition: service_healthy
+        environment:
+            POSTGRES_DB: ${POSTGRES_DB}
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASS}
+        volumes:
+        - ./streaming/sql:/docker-entrypoint-initdb.d
+        networks:
+        - backend
+
     streaming_producer:
         build: ./streaming
         container_name: streaming_producer
@@ -105,6 +120,8 @@ services:
                 condition: service_healthy
             init-kafka:
                 condition: service_completed_successfully
+            init-db:
+                condition: service_completed_successfully 
         networks:
             - backend
         command: ["python", "-m", "app.main", "--mode", "producer"]
@@ -125,6 +142,8 @@ services:
             db:
                 condition: service_healthy
             init-kafka:
+                condition: service_completed_successfully
+            init-db:
                 condition: service_completed_successfully
         networks:
             - backend
