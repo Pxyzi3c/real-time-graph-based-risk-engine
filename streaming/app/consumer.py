@@ -10,6 +10,7 @@ from app.db import save_dataframe_to_db
 from app.utils import get_kafka_consumer_config, get_kafka_producer_config
 from config.settings import settings
 from config.logging_config import setup_logging
+from datetime import datetime
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -42,7 +43,19 @@ class KafkaConsumer:
         try:
             transaction_data = json.loads(msg_value.decode('utf-8'))
             enriched_transaction = self.enricher.enrich_transaction(transaction_data)
-            return enriched_transaction
+            
+            def convert_non_serializable(obj):
+                if isinstance(obj, datetime):
+                    return obj.isoformat()
+                elif isinstance(obj, pd.Timestamp):
+                    return obj.isoformat()
+                elif isinstance(obj, dict):
+                    return {k: convert_non_serializable(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [convert_non_serializable(elem) for elem in obj]
+                return obj
+            
+            return convert_non_serializable(enriched_transaction)
         except json.JSONDecodeError as e:
             logger.error(f"Failed to decode JSON from message: {e}")
             return {} # Return empty dict or handle error appropriately
