@@ -89,20 +89,21 @@ services:
         networks:
             - backend
 
-    init-db:
-        image: postgres:13
-        container_name: init_db
-        depends_on:
-            db:
-                condition: service_healthy
-        environment:
-            POSTGRES_DB: ${POSTGRES_DB}
-            POSTGRES_USER: ${POSTGRES_USER}
-            POSTGRES_PASSWORD: ${POSTGRES_PASS}
-        volumes:
-        - ./streaming/sql:/docker-entrypoint-initdb.d
-        networks:
-        - backend
+    # init-db:
+    #     image: postgres:13
+    #     container_name: init_db
+    #     depends_on:
+    #         db:
+    #             condition: service_healthy
+    #     environment:
+    #         POSTGRES_DB: ${POSTGRES_DB}
+    #         POSTGRES_USER: ${POSTGRES_USER}
+    #         POSTGRES_PASSWORD: ${POSTGRES_PASS}
+    #         POSTGRES_HOST: db
+    #     volumes:
+    #         - ./streaming/sql:/docker-entrypoint-initdb.d
+    #     networks:
+    #         - backend
 
     streaming_producer:
         build: ./streaming

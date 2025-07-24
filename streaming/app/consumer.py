@@ -6,7 +6,7 @@ import pandas as pd
 
 from confluent_kafka import Consumer, KafkaException, Producer
 from app.enricher import TransactionEnricher
-from app.db import save_dataframe_to_db
+from app.db import save_dataframe_to_db, create_table_if_not_exists, CREATE_ENRICHED_TRANSACTIONS_TABLE_SQL
 from app.utils import get_kafka_consumer_config, get_kafka_producer_config
 from config.settings import settings
 from config.logging_config import setup_logging
@@ -25,6 +25,10 @@ class KafkaConsumer:
         self.enricher = TransactionEnricher()
         self.consumer.subscribe([self.input_topic, settings.KAFKA_OWNERSHIP_GRAPH_TOPIC])
         logger.info(f"Kafka Consumer initialized for input topic: {self.input_topic}, output topic: {self.output_topic}")
+        
+        logger.info("Ensuring 'enriched_transactions' table exists...")
+        create_table_if_not_exists(CREATE_ENRICHED_TRANSACTIONS_TABLE_SQL, 'enriched_transactions')
+        
         self.running = True
         self.batch = []
         self.batch_size = 100

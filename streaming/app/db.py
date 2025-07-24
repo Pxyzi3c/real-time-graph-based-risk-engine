@@ -13,6 +13,81 @@ logger = logging.getLogger(__name__)
 
 _engine = None
 
+CREATE_ENRICHED_TRANSACTIONS_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS enriched_transactions (
+    transaction_id VARCHAR(255) PRIMARY KEY,
+    time NUMERIC,
+    v1 NUMERIC,
+    v2 NUMERIC,
+    v3 NUMERIC,
+    v4 NUMERIC,
+    v5 NUMERIC,
+    v6 NUMERIC,
+    v7 NUMERIC,
+    v8 NUMERIC,
+    v9 NUMERIC,
+    v10 NUMERIC,
+    v11 NUMERIC,
+    v12 NUMERIC,
+    v13 NUMERIC,
+    v14 NUMERIC,
+    v15 NUMERIC,
+    v16 NUMERIC,
+    v17 NUMERIC,
+    v18 NUMERIC,
+    v19 NUMERIC,
+    v20 NUMERIC,
+    v21 NUMERIC,
+    v22 NUMERIC,
+    v23 NUMERIC,
+    v24 NUMERIC,
+    v25 NUMERIC,
+    v26 NUMERIC,
+    v27 NUMERIC,
+    v28 NUMERIC,
+    amount NUMERIC,
+    class INTEGER,
+    customer_id VARCHAR(255),
+    company_number VARCHAR(255),
+    kyc_full_name VARCHAR(255),
+    kyc_email VARCHAR(255),
+    kyc_phone_number VARCHAR(255),
+    kyc_address TEXT,
+    kyc_country VARCHAR(100),
+    kyc_date_of_birth DATE,
+    kyc_gender VARCHAR(50),
+    kyc_occupation VARCHAR(255),
+    kyc_registration_date TIMESTAMP,
+    kyc_last_login_ip VARCHAR(50),
+    kyc_device_id VARCHAR(255),
+    kyc_kyc_status VARCHAR(50),
+    kyc_risk_score NUMERIC(5,2),
+    kyc_updated_at TIMESTAMP,
+    ownership_links_json JSONB
+);
+"""
+
+def create_table_if_not_exists(sql_statement: str, table_name: str, max_retries: int = 5, retry_delay_seconds: int = 5):
+    """
+    Attempts to create a table using the provided SQL statement.
+    Retries multiple times if the database is not ready.
+    """
+    engine = get_db_engine()
+    
+    for attempt in range(max_retries):
+        try:
+            with engine.connect() as connection:
+                connection.execute(text(sql_statement))
+                connection.commit()
+            logger.info(f"Table '{table_name}' created or already exists.")
+            return True
+        except Exception as e:
+            logger.warning(f"Attempt {attempt + 1}/{max_retries}: Failed to create table '{table_name}'. Retrying in {retry_delay_seconds} seconds. Error: {e}")
+            time.sleep(retry_delay_seconds)
+    
+    logger.critical(f"Failed to create table '{table_name}' after {max_retries} attempts. Database might not be fully ready or connection issue persists.")
+    raise Exception(f"Failed to create table '{table_name}' after multiple attempts.")
+
 def get_db_engine():
     """Establishes and returns a SQLAlchemy engine for PostgreSQL."""
     global _engine
