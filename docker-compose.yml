@@ -121,8 +121,6 @@ services:
                 condition: service_healthy
             init-kafka:
                 condition: service_completed_successfully
-            init-db:
-                condition: service_completed_successfully 
         networks:
             - backend
         command: ["python", "-m", "app.main", "--mode", "producer"]
@@ -143,8 +141,6 @@ services:
             db:
                 condition: service_healthy
             init-kafka:
-                condition: service_completed_successfully
-            init-db:
                 condition: service_completed_successfully
         networks:
             - backend
