@@ -1,7 +1,7 @@
+import os
+
 from neo4j import GraphDatabase
 from config.settings import settings
-
-import os
 
 class GraphLoader:
     def __init__(self):
