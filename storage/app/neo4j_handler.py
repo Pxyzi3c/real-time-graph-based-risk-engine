@@ -8,8 +8,8 @@ load_dotenv()
 
 class Neo4jHandler:
     def __init__(self):
-        uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-        self.driver = GraphDatabase.driver(uri, auth=(os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASS")))
+        uri = settings.NEO4J_URI
+        self.driver = GraphDatabase.driver(uri, auth=(settings.NEO4J_USER, settings.NEO4J_PASS))
 
     def close(self):
         self.driver.close()
