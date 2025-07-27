@@ -1,0 +1,13 @@
+# PostgreSQL
+sqlalchemy==2.0.30
+psycopg2-binary==2.9.9
+
+# Neo4j
+neo4j==5.19.0
+
+# Parquet
+pandas==2.2.2
+pyarrow==15.0.2
+
+# Logging and dotenv
+python-dotenv==1.0.1
