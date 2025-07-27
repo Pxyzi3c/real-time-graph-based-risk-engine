@@ -89,22 +89,6 @@ services:
         networks:
             - backend
 
-    # init-db:
-    #     image: postgres:13
-    #     container_name: init_db
-    #     depends_on:
-    #         db:
-    #             condition: service_healthy
-    #     environment:
-    #         POSTGRES_DB: ${POSTGRES_DB}
-    #         POSTGRES_USER: ${POSTGRES_USER}
-    #         POSTGRES_PASSWORD: ${POSTGRES_PASS}
-    #         POSTGRES_HOST: db
-    #     volumes:
-    #         - ./streaming/sql:/docker-entrypoint-initdb.d
-    #     networks:
-    #         - backend
-
     streaming_producer:
         build: ./streaming
         container_name: streaming_producer
@@ -147,8 +131,33 @@ services:
         command: ["python", "-m", "app.main", "--mode", "consumer"]
         restart: unless-stopped
 
+    neo4j:
+        image: neo4j:5.13.0-community
+        container_name: neo4j
+        environment:
+            - NEO4J_AUTH=neo4j/testpassword
+            - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+            - NEO4J_apoc_export_file_enabled=true
+            - NEO4J_apoc_import_file_enabled=true
+        ports:
+            - "7474:7474"  # Browser
+            - "7687:7687"  # Bolt
+        volumes:
+            - neo4j_data:/data
+            - ./storage/neo4j_import:/var/lib/neo4j/import
+        env_file:
+            - ./storage/.env
+        networks:
+            - backend
+        healthcheck:
+            test: [ "CMD", "wget", "--spider", "-q", "http://localhost:7474" ]
+            interval: 10s
+            timeout: 10s
+            retries: 5
+
 volumes:
     pg_data:
+    neo4j_data:
 
 networks:
     backend:
