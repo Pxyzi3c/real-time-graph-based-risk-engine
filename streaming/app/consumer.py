@@ -12,6 +12,9 @@ from config.settings import settings
 from config.logging_config import setup_logging
 from datetime import datetime
 
+from storage.app.neo4j_loader import GraphLoader
+from storage.app.parquet_saver import save_to_parquet
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
@@ -145,6 +148,16 @@ class KafkaConsumer:
                 flat_item['ownership_links_json'] = json.dumps(ownership_links)
                 
                 processed_batch.append(flat_item)
+
+                # TO-DO: Arrange parquet and neo4j processes in this function. Not sure if this is the right place but this process should also be in this function
+                # neo4j_loader.insert_transaction({
+                #     "customer_id": item.get("customer_id"),
+                #     "transaction_id": item.get("transaction_id"),
+                #     "amount": float(item.get("amount", 0)),
+                #     "risk_score": float(item.get("kyc_risk_score", 0))
+                # })
+                
+                # save_to_parquet(df, f"enriched_batch_{int(time.time())}.parquet")
 
             df = pd.DataFrame(processed_batch)
             
